@@ -70,3 +70,49 @@ void dshow(disk *dd) {
     );
     return;
 }
+
+RC dread(disk *dd, uint8_t *block, uint32_t blockno) {
+    if (!dd || !block) {
+        fprintf(stderr, "dread error, dd or block pointer is null...");
+        return ErrArg;
+    }
+
+    // blockno start from 0
+    if (blockno <= 0 || blockno > dd->blocks) { // PAY ATTENTION TO THIS
+        fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d", 
+                (int)blockno, (int)dd->blocks);
+        return ErrArg;
+    } 
+
+    // If read block 1, should range: 0 ~ block_size
+    uint32_t offset = (blockno-1)*dd->block_size;
+
+    if (pread(dd->fd, block, dd->block_size, offset) < 0) {
+        fprintf(stderr, "dread error, could not read block [%d]...", (int)blockno);
+        return ErrDread;
+    }
+    return OK;
+}
+
+RC dwrite(disk *dd, uint8_t *block, uint32_t blockno) {
+    if (!dd || !block) {
+        fprintf(stderr, "dwrite error, dd or block pointer is null...");
+        return ErrArg;
+    }
+
+    // blockno start from 0
+    if (blockno <= 0 || blockno > dd->blocks) { // PAY ATTENTION TO THIS
+        fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d", 
+                (int)blockno, (int)dd->blocks);
+        return ErrArg;
+    } 
+
+    // If read block 1, should range: 0 ~ block_size
+    uint32_t offset = (blockno-1)*dd->block_size;
+
+    if (pwrite(dd->fd, block, dd->block_size, offset) < 0) {
+        fprintf(stderr, "dwrite error, could not write block [%d]...", (int)blockno);
+        return ErrDwrite;
+    }
+    return OK;
+}
