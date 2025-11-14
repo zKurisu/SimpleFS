@@ -1,3 +1,11 @@
+/*
+ * disk.c
+ * Simple disk emulator
+ * Copyright (C) Jie
+ * 2025-11-14
+ *
+ */
+
 #include "disk.h"
 #include "error.h"
 #include "helper.h"
