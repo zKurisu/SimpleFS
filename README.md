@@ -5,16 +5,26 @@
 
 # TODO
 计划内容, 这里列出不完全版本, 后续更新:
-- ✅ `dattach`
-- ✅ `ddetach`
-- ✅ `dshow`
-- ✅ `dattach`
-- ✅ `dread`
-- ✅ `dwrite`
-- `bm_getbit`
-- `bm_setbit`
-- `bm_unsetbit`
-- `bm_clearmap`
+- ✅ `dattach`, 初始化 disk 结构体, 获取 low level 文件描述符
+- ✅ `ddetach`, 释放 disk 资源
+- ✅ `dshow`, 打印 disk 信息
+- ✅ `dread`, 读取一个 block
+- ✅ `dwrite`, 写入一个 block
+- ✅ `dreads`, 读取一组 blocks
+- ✅ `dwrites`, 写入一组 blocks
+- ✅ `bm_getbit`, 获取某位
+- ✅ `bm_setbit`, 设置某位
+- ✅ `bm_unsetbit`, 取消某位
+- ✅ `bm_clearmap`, 清理整个 bitmap
+- ✅ `get_inode_per_block`, 获取每个 block 能容纳的 inode 节点数量
+- ✅ `bl_create`, 创建一个 block
+- ✅ `bl_set_data`, 设置 block 的 data 字段
+- ✅ `bl_get_data`, 获取 block 的 data 字段
+- ✅ `ino_init`, 清零一个 inode
+- ✅ `fs_format`, 用 fs 中定义的一些常量初始化 disk (操作磁盘文件)
+- ✅ `fs_mount`, 读取 disk 文件信息, 初始化 filesystem 结构体
+- ✅ `fs_unmount`, 释放 filesystem 结构体
+- ✅ `fs_show`, 打印 filesystem 结构体信息
 
 # Task1
 - 目标: 完成用户态环境下的磁盘模拟功能, 提供磁盘基本信息查询与格式化功能。
