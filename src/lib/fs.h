@@ -26,9 +26,12 @@ struct s_filesystem {
     uint32_t inodeblocks;
     uint32_t inodes;
     uint32_t inode_bitmap_start; // Dynamic calc
+    uint32_t inode_bitmap_bl_count;
     uint32_t block_bitmap_start; // Dynamic calc
+    uint32_t block_bitmap_bl_count;
     uint32_t inode_table_start; // Dynamic calc
     uint32_t datablock_start;    // Dynamic calc
+    uint32_t datablock_bl_count;
 
     // Bitmap objs
     bitmap *inode_bitmap;          // inode alloc
@@ -39,5 +42,6 @@ typedef struct s_filesystem filesystem;
 RC fs_format(disk *dd);  // Format disk, init a superblock
 RC fs_mount(disk *dd, filesystem *fs);   // Init a filesystem struct
 RC fs_unmount(filesystem *fs);           // Destroy a filesystem struct
+RC fs_show(filesystem *fs); // display filesystem infomation
 
 #endif

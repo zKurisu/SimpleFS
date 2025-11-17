@@ -75,7 +75,7 @@ RC fs_format(disk *dd) {
         printf("Write inode bitmap block at block number: %d\n", (int)(super_data->inode_bitmap_start+i));
         if (ret != OK) {
             free(super_data);
-            fprintf(stderr, "fs_format error: falied to init inode bitmap block at block %d",i);
+            fprintf(stderr, "fs_format error: falied to init inode bitmap block at block %d\n",i);
             return ret;
         }
     }
@@ -88,7 +88,7 @@ RC fs_format(disk *dd) {
     block_bitmap = bm_create(size);
     if (!block_bitmap) {
         free(super_data);
-        fprintf(stderr, "fs_format error: Failed to create a block_bitmap...");
+        fprintf(stderr, "fs_format error: Failed to create a block_bitmap...\n");
         return ErrBmCreate;
     }
     // bitmap index is 0-based, block number is 1-based. should change it????
@@ -101,7 +101,7 @@ RC fs_format(disk *dd) {
     if (ret != OK) {
         free(super_data);
         free(block_bitmap);
-        fprintf(stderr, "fs_format error: Failed to init block_bitmap...");
+        fprintf(stderr, "fs_format error: Failed to init block_bitmap...\n");
         return ret;
     }
 
@@ -123,7 +123,7 @@ RC fs_format(disk *dd) {
         for (uint32_t j = 0; j < inodes_per_block; j++) {
             ret = ino_init(&inodes[j]);
             if (ret != OK) {
-                fprintf(stderr, "fs_format error: falied to init inode block at block %d, slot %d",
+                fprintf(stderr, "fs_format error: falied to init inode block at block %d, slot %d\n",
                         i, j);
                 return ret;
             }
@@ -165,20 +165,23 @@ RC fs_mount(disk *dd, filesystem *fs) {
     memset(fs, 0, size);
 
     fs->dd = dd;
-    fs->blocks             = super_data->blocks;
-    fs->inodeblocks        = super_data->inodeblocks;
-    fs->inodes             = super_data->inodes;
-    fs->inode_bitmap_start = super_data->inode_bitmap_start;
-    fs->block_bitmap_start = super_data->block_bitmap_start;
-    fs->inode_table_start  = super_data->inode_table_start;
-    fs->datablock_start    = super_data->datablock_start;
+    fs->blocks                = super_data->blocks;
+    fs->inodeblocks           = super_data->inodeblocks;
+    fs->inodes                = super_data->inodes;
+    fs->inode_bitmap_start    = super_data->inode_bitmap_start;
+    fs->inode_bitmap_bl_count = super_data->inode_bitmap_bl_count;
+    fs->block_bitmap_start    = super_data->block_bitmap_start;
+    fs->block_bitmap_bl_count = super_data->block_bitmap_bl_count;
+    fs->inode_table_start     = super_data->inode_table_start;
+    fs->datablock_start       = super_data->datablock_start;
+    fs->datablock_bl_count    = super_data->datablock_bl_count;
 
     // setup bitmap
     size = super_data->inode_bitmap_bl_count * dd->block_size;
     inode_bitmap = bm_create(size);
     if (!inode_bitmap) {
         free(super_data);
-        fprintf(stderr, "Failed to create a inode_bitmap...");
+        fprintf(stderr, "Failed to create a inode_bitmap...\n");
         return ErrBmCreate;
     }
     // if start: 3, count: 1, end should be 3 = start + count - 1
@@ -188,7 +191,7 @@ RC fs_mount(disk *dd, filesystem *fs) {
     if (ret != OK) {
         free(super_data);
         free(inode_bitmap);
-        fprintf(stderr, "fs_mount error, failed to read inode bitmap info from disk...");
+        fprintf(stderr, "fs_mount error, failed to read inode bitmap info from disk...\n");
         return ret;
     }
 
@@ -196,7 +199,7 @@ RC fs_mount(disk *dd, filesystem *fs) {
     block_bitmap = bm_create(size);
     if (!block_bitmap) {
         free(super_data);
-        fprintf(stderr, "Failed to create a block_bitmap...");
+        fprintf(stderr, "Failed to create a block_bitmap...\n");
         return ErrBmCreate;
     }
     start = super_data->block_bitmap_start;
@@ -206,7 +209,7 @@ RC fs_mount(disk *dd, filesystem *fs) {
         free(super_data);
         free(inode_bitmap);
         free(block_bitmap);
-        fprintf(stderr, "fs_mount error, failed to read inode bitmap info from disk...");
+        fprintf(stderr, "fs_mount error, failed to read inode bitmap info from disk...\n");
         return ret;
     }
 
@@ -218,8 +221,166 @@ RC fs_mount(disk *dd, filesystem *fs) {
 }
 
 RC fs_unmount(filesystem *fs) {
-    RC ret = OK;
+    if (!fs) {
+        fprintf(stderr, "fs_unmount error, non null pointer needed...\n");
+    }
 
+    RC ret = OK;
+    uint32_t start, end;
+
+    start = fs->inode_bitmap_start;
+    end = start+fs->inode_bitmap_bl_count-1;
+    ret = dwrites(fs->dd, fs->inode_bitmap->bytes, start, end);
+    if (ret != OK) {
+        fprintf(stderr, "fs_unmount error, failed to write inode bitmap back to disk...\n");
+        return ret;
+    }
+
+    start = fs->block_bitmap_start;
+    end = start+fs->block_bitmap_bl_count-1;
+    ret = dwrites(fs->dd, fs->block_bitmap->bytes, start, end);
+    if (ret != OK) {
+        fprintf(stderr, "fs_unmount error, failed to write block bitmap back to disk...\n");
+        return ret;
+    }
+
+    if (fs->inode_bitmap) {
+        if (fs->inode_bitmap->bytes) {
+            free(fs->inode_bitmap->bytes);
+        }
+        free(fs->inode_bitmap);
+        fs->inode_bitmap = NULL;
+    }
+
+    if (fs->block_bitmap) {
+        if (fs->block_bitmap->bytes) {
+            free(fs->block_bitmap->bytes);
+        }
+        free(fs->block_bitmap);
+        fs->block_bitmap = NULL;
+    }
 
     return ret;
+}
+
+RC fs_show(filesystem *fs) {
+    if (!fs) {
+        fprintf(stderr, "fs_show error: null filesystem pointer\n");
+        return ErrArg;
+    }
+
+    printf("========================================\n");
+    printf("Filesystem Information\n");
+    printf("========================================\n");
+
+    // 1. Basic disk information
+    if (fs->dd) {
+        printf("Disk:\n");
+        printf("  Disk ID:          %d\n", fs->dd->id);
+        printf("  Block size:       %u bytes\n", fs->dd->block_size);
+        printf("  Total blocks:     %u\n", fs->dd->blocks);
+        printf("  Total size:       %lld bytes (%.2f KB)\n",
+               (long long)(fs->dd->blocks * fs->dd->block_size),
+               (double)(fs->dd->blocks * fs->dd->block_size) / 1024.0);
+    } else {
+        printf("Disk:               <not attached>\n");
+    }
+
+    printf("\n");
+
+    // 2. Filesystem layout
+    printf("Filesystem Layout:\n");
+    printf("  Total blocks:     %u\n", fs->blocks);
+    printf("  Inode blocks:     %u (%.1f%%)\n",
+           fs->inodeblocks,
+           (double)fs->inodeblocks / fs->blocks * 100.0);
+    printf("  Total inodes:     %u\n", fs->inodes);
+    printf("  Data blocks:      %u (%.1f%%)\n",
+           fs->datablock_bl_count,
+           (double)fs->datablock_bl_count / fs->blocks * 100.0);
+
+    printf("\n");
+
+    // 3. Block allocation map
+    printf("Block Allocation Map:\n");
+    printf("  [Block   1]:      Super Block\n");
+    printf("  [Block %3u]:      Inode Bitmap (%u block%s)\n",
+           fs->inode_bitmap_start,
+           fs->inode_bitmap_bl_count,
+           fs->inode_bitmap_bl_count > 1 ? "s" : "");
+    printf("  [Block %3u]:      Block Bitmap (%u block%s)\n",
+           fs->block_bitmap_start,
+           fs->block_bitmap_bl_count,
+           fs->block_bitmap_bl_count > 1 ? "s" : "");
+    printf("  [Block %3u-%3u]:  Inode Table (%u blocks)\n",
+           fs->inode_table_start,
+           fs->inode_table_start + fs->inodeblocks - 1,
+           fs->inodeblocks);
+    printf("  [Block %3u-%3u]:  Data Blocks (%u blocks)\n",
+           fs->datablock_start,
+           fs->blocks,
+           fs->datablock_bl_count);
+
+    printf("\n");
+
+    // 4. Bitmap statistics
+    printf("Bitmap Statistics:\n");
+
+    // Count free inodes
+    uint32_t free_inodes = 0;
+    if (fs->inode_bitmap) {
+        for (uint32_t i = 0; i < fs->inodes; i++) {
+            if (bm_getbit(fs->inode_bitmap, i) == 0) {
+                free_inodes++;
+            }
+        }
+        uint32_t used_inodes = fs->inodes - free_inodes;
+        printf("  Inodes:\n");
+        printf("    Total:          %u\n", fs->inodes);
+        printf("    Used:           %u (%.1f%%)\n",
+               used_inodes,
+               (double)used_inodes / fs->inodes * 100.0);
+        printf("    Free:           %u (%.1f%%)\n",
+               free_inodes,
+               (double)free_inodes / fs->inodes * 100.0);
+    } else {
+        printf("  Inode bitmap:     <not loaded>\n");
+    }
+
+    printf("\n");
+
+    // Count free blocks
+    uint32_t free_blocks = 0;
+    if (fs->block_bitmap) {
+        for (uint32_t i = 0; i < fs->blocks; i++) {
+            if (bm_getbit(fs->block_bitmap, i) == 0) {
+                free_blocks++;
+            }
+        }
+        uint32_t used_blocks = fs->blocks - free_blocks;
+        printf("  Blocks:\n");
+        printf("    Total:          %u\n", fs->blocks);
+        printf("    Used:           %u (%.1f%%)\n",
+               used_blocks,
+               (double)used_blocks / fs->blocks * 100.0);
+        printf("    Free:           %u (%.1f%%)\n",
+               free_blocks,
+               (double)free_blocks / fs->blocks * 100.0);
+
+        // Calculate usable data blocks
+        uint32_t metadata_blocks = fs->datablock_start - 1;
+        uint32_t free_data_blocks = free_blocks;
+        if (free_blocks >= metadata_blocks) {
+            printf("    Free (data):    %u blocks (%lld bytes, %.2f KB)\n",
+                   free_data_blocks,
+                   (long long)(free_data_blocks * fs->dd->block_size),
+                   (double)(free_data_blocks * fs->dd->block_size) / 1024.0);
+        }
+    } else {
+        printf("  Block bitmap:     <not loaded>\n");
+    }
+
+    printf("========================================\n");
+
+    return OK;
 }
