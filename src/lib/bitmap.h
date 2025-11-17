@@ -20,7 +20,7 @@ typedef struct s_bitmap bitmap;
 // bm is short for bitmap
 
 // Return -1 for error condition, not RC this time
-bitmap *bm_create(uint32_t size); // create a bitmap
+bitmap *bm_create(uint32_t size); // create a bitmap, size is byte_len
 uint8_t bm_getbit(bitmap *bm, uint32_t idx);
 uint8_t bm_setbit(bitmap *bm, uint32_t idx);
 uint8_t bm_unsetbit(bitmap *bm, uint32_t idx);
