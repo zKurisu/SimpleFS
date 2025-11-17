@@ -14,7 +14,8 @@ typedef enum {
     ErrDwrite,
     ErrAttach,
     ErrDetach,
-    ErrArg
+    ErrArg,
+    ErrNoMem
 } RC; // Return Code
 
 #endif
