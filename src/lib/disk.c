@@ -85,7 +85,7 @@ RC dread(disk *dd, uint8_t *block, uint32_t blockno) {
         return ErrArg;
     }
 
-    // blockno start from 0
+    // blockno start from 1
     if (blockno <= 0 || blockno > dd->blocks) { // PAY ATTENTION TO THIS
         fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d", 
                 (int)blockno, (int)dd->blocks);
@@ -100,6 +100,44 @@ RC dread(disk *dd, uint8_t *block, uint32_t blockno) {
         return ErrDread;
     }
     return OK;
+}
+
+RC dreads(disk *dd, uint8_t *block, uint32_t start, uint32_t end) {
+    if (!dd || !block) {
+        fprintf(stderr, "dreads error, dd or block pointer is null...");
+        return ErrArg;
+    }
+
+    if (start < 1) {
+        fprintf(stderr, "dreads error, block start from [%d], it should greater equal to 1...",
+                (int)start);
+        return ErrArg;
+    }
+
+    if (end < 1 || end > dd->blocks) {
+        fprintf(stderr, "dreads error, block end to [%d], it should in range %d ~ %d...",
+                (int)end, 1, (int)dd->blocks);
+        return ErrArg;
+    }
+
+    if (start > end) {
+         fprintf(stderr, "dreads error, start [%d] > end [%d]\n",
+                 (int)start, (int)end);
+         return ErrArg;
+     }
+
+    uint32_t n;
+    RC ret = OK;
+    for (n=start; n<=end; n++) {
+        ret = dread(dd, block, n);
+        if (ret != OK) {
+            fprintf(stderr, "dreads failed at block %d\n", (int)n);
+            break;
+        }
+
+        block += dd->block_size;
+    }
+    return ret;
 }
 
 RC dwrite(disk *dd, uint8_t *block, uint32_t blockno) {
@@ -123,4 +161,41 @@ RC dwrite(disk *dd, uint8_t *block, uint32_t blockno) {
         return ErrDwrite;
     }
     return OK;
+}
+
+RC dwrites(disk *dd, uint8_t *block, uint32_t start, uint32_t end) {
+    if (!dd || !block) {
+        fprintf(stderr, "dwrites error, dd or block pointer is null...");
+        return ErrArg;
+    }
+    if (start < 1) {
+        fprintf(stderr, "dreads error, block start from [%d], it should greater equal to 1...",
+                (int)start);
+        return ErrArg;
+    }
+
+    if (end < 1 || end > dd->blocks) {
+        fprintf(stderr, "dreads error, block end to [%d], it should in range %d ~ %d...",
+                (int)end, 1, (int)dd->blocks);
+        return ErrArg;
+    }
+
+    if (start > end) {
+         fprintf(stderr, "dreads error, start [%d] > end [%d]\n",
+                 (int)start, (int)end);
+         return ErrArg;
+     }
+
+    uint32_t n;
+    RC ret = OK;
+    for (n=start; n<=end; n++) {
+        ret = dwrite(dd, block, n);
+        if (ret != OK) {
+            fprintf(stderr, "dwrites failed at block %d\n", (int)n);
+            break;
+        }
+
+        block += dd->block_size;
+    }
+    return ret;
 }

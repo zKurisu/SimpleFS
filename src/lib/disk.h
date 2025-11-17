@@ -60,9 +60,15 @@ void dshow(disk *dd);
 */
 RC dread(disk *dd, uint8_t *block, uint32_t blockno);
 
+// Read include number of END
+RC dreads(disk *dd, uint8_t *block, uint32_t start, uint32_t end);
+
 /*
  * Write to a disk block: Same with dread
 */
 RC dwrite(disk *dd, uint8_t *block, uint32_t blockno);
+
+// Write include number of END
+RC dwrites(disk *dd, uint8_t *block, uint32_t start, uint32_t end);
 
 #endif
