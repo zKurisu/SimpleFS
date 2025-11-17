@@ -8,6 +8,8 @@
 #ifndef MY_INODE_H_
 #define MY_INODE_H_
 
+#include "error.h"
+
 #include <stdint.h>
 
 #define DIRECT_POINTERS 12
@@ -31,4 +33,6 @@ struct s_inode {
 };
 typedef struct s_inode inode;
 
+// Set a inode to init state
+RC ino_init(inode *ino);
 #endif
