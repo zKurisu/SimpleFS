@@ -38,9 +38,11 @@ typedef struct s_inode inode;
 RC ino_init(inode *ino);
 
 // Get a available inode by inode number
+// it will edit inode_bitmap
 uint32_t ino_alloc(filesystem *fs);
 
 // Set a inode to invalid and clear the content
+// it will edit inode_bitmap
 RC ino_free(filesystem *fs, uint32_t inode_number);
 
 // Read inode from disk
