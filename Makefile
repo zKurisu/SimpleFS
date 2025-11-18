@@ -7,7 +7,7 @@ SRC = main.c
 SRC_PATH = $(SRC_DIR)/$(SRC)
 
 TEST_DIR = test
-TEST_SRC = check_fs_format.c
+TEST_SRC = check_ino.c
 TEST_SRC_PATH = $(TEST_DIR)/$(TEST_SRC)
 TEST_TARGET = test
 TEST_TARGET_PATH = $(BUILD_DIR)/$(TEST_TARGET)
