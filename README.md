@@ -25,10 +25,10 @@
 - ✅ `fs_unmount`, 释放 filesystem 结构体
 - ✅ `fs_show`, 打印 filesystem 结构体信息
 - ✅ `ino_init`, 清零一个 inode
-- `ino_alloc`
-- `ino_free`
-- `ino_read`
-- `ino_write`
+- ✅ `ino_alloc`
+- ✅ `ino_free`
+- ✅ `ino_read`
+- ✅ `ino_write`
 - `ino_alloc_block`
 - `ino_get_block`
 - `ino_free_block`
