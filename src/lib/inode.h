@@ -9,6 +9,7 @@
 #define MY_INODE_H_
 
 #include "error.h"
+#include "fs.h"
 
 #include <stdint.h>
 
@@ -35,4 +36,33 @@ typedef struct s_inode inode;
 
 // Set a inode to init state
 RC ino_init(inode *ino);
+
+// Get a available inode by inode number
+uint32_t ino_alloc(filesystem *fs);
+
+// Set a inode to invalid and clear the content
+RC ino_free(filesystem *fs, uint32_t inode_number);
+
+// Read inode from disk
+RC ino_read(filesystem *fs, uint32_t inode_number, inode *ino);
+
+// Write inode to disk
+RC ino_write(filesystem *fs, uint32_t inode_number, inode *ino); // Should check inode number
+
+// Get a available block by block number
+uint32_t ino_alloc_block(filesystem *fs, inode *ino, uint32_t offset);
+
+// Get block number
+uint8_t ino_get_block(filesystem *fs, inode *ino, uint32_t offset);
+
+// Clear a block
+RC ino_free_block(filesystem *fs, inode *ino, uint32_t offset);
+
+// Clear all blocks
+RC ino_free_all_blocks(filesystem *fs, inode *ino);
+
+void ino_show(inode *ino);
+int ino_is_valid(inode *ino);
+uint32_t ino_get_block_count(filesystem *fs, inode *ino);
+
 #endif
