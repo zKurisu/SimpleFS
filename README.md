@@ -20,11 +20,23 @@
 - ✅ `bl_create`, 创建一个 block
 - ✅ `bl_set_data`, 设置 block 的 data 字段
 - ✅ `bl_get_data`, 获取 block 的 data 字段
-- ✅ `ino_init`, 清零一个 inode
 - ✅ `fs_format`, 用 fs 中定义的一些常量初始化 disk (操作磁盘文件)
 - ✅ `fs_mount`, 读取 disk 文件信息, 初始化 filesystem 结构体
 - ✅ `fs_unmount`, 释放 filesystem 结构体
 - ✅ `fs_show`, 打印 filesystem 结构体信息
+- ✅ `ino_init`, 清零一个 inode
+- `ino_alloc`
+- `ino_free`
+- `ino_read`
+- `ino_write`
+- `ino_alloc_block`
+- `ino_get_block`
+- `ino_free_block`
+- `ino_free_all_blocks`
+- `ino_show`
+- `ino_is_valid`
+- `ino_get_block_count`
+
 
 # Task1
 - 目标: 完成用户态环境下的磁盘模拟功能, 提供磁盘基本信息查询与格式化功能。
