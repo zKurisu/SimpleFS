@@ -10,6 +10,7 @@
 #define MY_BLOCK_H_
 
 #include "disk.h"
+#include "fs.h"
 #include "error.h"
 
 #include <stdint.h>
@@ -63,4 +64,11 @@ RC bl_set_data(block* data_block, uint8_t *data);
 // Maybe only one read function is enough??
 void *bl_get_data(block* bl);
 
+// Allocate a free block, return block number
+// This will edit block bitmap
+uint32_t bl_alloc(filesystem *fs);
+
+// Free a block
+// This will edit block bitmap
+RC bl_free(filesystem *fs, uint32_t block_number);
 #endif

@@ -9,6 +9,7 @@
 #include "block.h"
 #include "inode.h"
 #include "helper.h"
+#include "bitmap.h"
 #include "error.h"
 
 #include <stdio.h>
@@ -89,3 +90,41 @@ void *bl_get_data(block* bl) {
 
     return bl->data;
 }
+
+uint32_t bl_alloc(filesystem *fs) {
+    if (!fs) {
+        fprintf(stderr, "bl_alloc error: a non null pointer is needed...\n");
+        return 0;
+    }
+
+    uint32_t block_number;
+    for (block_number=0; block_number < fs->blocks; block_number++) {
+        if (!bm_getbit(fs->block_bitmap, block_number)) {
+            if (!bm_setbit(fs->block_bitmap, block_number)) // bm_setbit return 0 means success
+                return block_number + 1; // convert to 1-based
+            else
+                return 0;
+        }
+    }
+
+    fprintf(stderr, "bl_alloc error: could not find a available block...\n");
+
+    return 0;
+}
+
+RC bl_free(filesystem *fs, uint32_t block_number) {
+    if (!fs || block_number <= 0 || block_number > fs->blocks) {
+        fprintf(stderr, "bl_alloc error: wrong args...\n");
+        return 0;
+    }
+
+    // convert to 0-based
+    if (bm_unsetbit(fs->block_bitmap, block_number-1) < 0) {
+        fprintf(stderr, "bl_free error: could not unset bitmap index at [%d]",
+                (int)block_number);
+        return ErrBmOpe;
+    }
+
+    return OK;
+}
+
