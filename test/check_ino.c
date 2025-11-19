@@ -1,4 +1,5 @@
 #include "fs.h"
+#include "block.h"
 #include "inode.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,34 +37,34 @@ int main(void) {
 
     ///////////////////
 
-    inode ino;
-    ret = ino_init(&ino);
-    if (ret != OK) {
-        fprintf(stderr, "Failed to init inode: %d\n", ret);
-        free(dd);
-        free(fs);
-        exit(-1);
-    }
-    // Write
-    uint32_t idx = ino_alloc(fs);
-    if (!idx) {
-        fprintf(stderr, "Failed to alloc a inode number: %d\n", ret);
-        free(dd);
-        free(fs);
-        exit(-1);
-    }
-    printf("Success to allocate a inode number...\n");
-    ino.inode_number = idx;
-    ino.file_size = 255;
-    ino.file_type = FTypeFile;
-    ret = ino_write(fs, idx, &ino);
-    if (ret != OK) {
-        fprintf(stderr, "Failed to write inode: %d\n", ret);
-        free(dd);
-        free(fs);
-        exit(-1);
-    }
-    printf("Success to write inode to disk...\n");
+    // inode ino;
+    // ret = ino_init(&ino);
+    // if (ret != OK) {
+    //     fprintf(stderr, "Failed to init inode: %d\n", ret);
+    //     free(dd);
+    //     free(fs);
+    //     exit(-1);
+    // }
+    // // Write
+    // uint32_t idx = ino_alloc(fs);
+    // if (!idx) {
+    //     fprintf(stderr, "Failed to alloc a inode number: %d\n", ret);
+    //     free(dd);
+    //     free(fs);
+    //     exit(-1);
+    // }
+    // printf("Success to allocate a inode number...\n");
+    // ino.inode_number = idx;
+    // ino.file_size = 255;
+    // ino.file_type = FTypeFile;
+    // ret = ino_write(fs, idx, &ino);
+    // if (ret != OK) {
+    //     fprintf(stderr, "Failed to write inode: %d\n", ret);
+    //     free(dd);
+    //     free(fs);
+    //     exit(-1);
+    // }
+    // printf("Success to write inode to disk...\n");
     
 
     // Read
@@ -92,6 +93,27 @@ int main(void) {
     //     free(fs);
     //     exit(-1);
     // }
+
+    // uint32_t block_number;
+    // block_number = bl_alloc(fs);
+    // if (!block_number) {
+    //      fprintf(stderr, "Failed to allocate block: %d\n", ret);
+    //      free(dd);
+    //      free(fs);
+    //      exit(-1);
+    // }
+    // printf("Success to allocate a block at [%d]\n", (int)block_number);
+    
+    uint32_t block_number = 16;
+    ret = bl_free(fs, block_number);
+    if (ret != OK) {
+         fprintf(stderr, "Failed to free block: %d\n", ret);
+         free(dd);
+         free(fs);
+         exit(-1);
+    }
+    printf("Success to free a block at [%d]\n", (int)block_number);
+
 
     ///////////////////
 
