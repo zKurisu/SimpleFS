@@ -31,10 +31,10 @@
 - ✅ `ino_free`, 查阅并更新 inode bitmap, 释放一个可用的 inode number (置为 0 表示未占用)
 - ✅ `ino_read`, 用 inode number 从磁盘读取一个 inode 信息
 - ✅ `ino_write`, 向磁盘写入一个 inode 信息到指定 inode number
-- `ino_alloc_block`
-- `ino_get_block`
-- `ino_free_block`
-- `ino_free_all_blocks`
+- ✅ `ino_alloc_block_at`, 向 `direct_blocks` 或 `single_indirect` 中分配可用的 block number
+- ✅ `ino_get_block_at`, 从 `direct_blocks` 或 `single_indirect` 中读取一个 block number
+- ✅ `ino_free_block_at`, 从 `direct_blocks` 或 `single_indirect` 中释放 block number
+- ✅ `ino_free_all_blocks`, 从 `direct_blocks` 或 `single_indirect` 中释放所有 block number
 - `ino_show`
 - `ino_is_valid`
 - `ino_get_block_count`
