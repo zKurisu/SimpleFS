@@ -20,15 +20,17 @@
 - ✅ `bl_create`, 创建一个 block
 - ✅ `bl_set_data`, 设置 block 的 data 字段
 - ✅ `bl_get_data`, 获取 block 的 data 字段
+- ✅ `bl_alloc`, 查阅并更新 block bitmap, 分配一个可用的 block number (置为 1 表示已占用)
+- ✅ `bl_free`, 查阅并更新 block bitmap, 释放一个 block number (置为 0 表示未占用)
 - ✅ `fs_format`, 用 fs 中定义的一些常量初始化 disk (操作磁盘文件)
 - ✅ `fs_mount`, 读取 disk 文件信息, 初始化 filesystem 结构体
 - ✅ `fs_unmount`, 释放 filesystem 结构体
 - ✅ `fs_show`, 打印 filesystem 结构体信息
 - ✅ `ino_init`, 清零一个 inode
-- ✅ `ino_alloc`
-- ✅ `ino_free`
-- ✅ `ino_read`
-- ✅ `ino_write`
+- ✅ `ino_alloc`, 查阅并更新 inode bitmap, 分配一个可用的 inode number (置为 1 表示已占用)
+- ✅ `ino_free`, 查阅并更新 inode bitmap, 释放一个可用的 inode number (置为 0 表示未占用)
+- ✅ `ino_read`, 用 inode number 从磁盘读取一个 inode 信息
+- ✅ `ino_write`, 向磁盘写入一个 inode 信息到指定 inode number
 - `ino_alloc_block`
 - `ino_get_block`
 - `ino_free_block`
