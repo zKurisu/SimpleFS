@@ -35,9 +35,9 @@
 - ✅ `ino_get_block_at`, 从 `direct_blocks` 或 `single_indirect` 中读取一个 block number
 - ✅ `ino_free_block_at`, 从 `direct_blocks` 或 `single_indirect` 中释放 block number
 - ✅ `ino_free_all_blocks`, 从 `direct_blocks` 或 `single_indirect` 中释放所有 block number
-- `ino_show`
-- `ino_is_valid`
-- `ino_get_block_count`
+- ✅ `ino_show`, 打印 inode 信息
+- ✅ `ino_is_valid`, 检查是否保存有 inode number, 类型是否正确
+- ✅ `ino_get_block_count`, 查看 inode 已分配多少 blocks 
 
 
 # Task1
