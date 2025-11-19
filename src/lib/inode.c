@@ -368,3 +368,130 @@ RC ino_free_all_blocks(filesystem *fs, inode *ino) {
 
     return OK;
 }
+
+void ino_show(inode *ino) {
+    if (!ino) {
+        fprintf(stderr, "ino_show: null inode pointer\n");
+        return;
+    }
+
+    const char *type_str;
+    switch (ino->file_type) {
+        case FTypeNotValid:
+            type_str = "Invalid";
+            break;
+        case FTypeFile:
+            type_str = "File";
+            break;
+        case FTypeDirectory:
+            type_str = "Directory";
+            break;
+        default:
+            type_str = "Unknown";
+            break;
+    }
+
+    printf("========================================\n");
+    printf("Inode Information\n");
+    printf("========================================\n");
+    printf("Inode number:       %u\n", ino->inode_number);
+    printf("File type:          %s (%d)\n", type_str, ino->file_type);
+    printf("File size:          %u bytes", ino->file_size);
+
+    // Show human-readable size
+    if (ino->file_size >= 1024*1024) {
+        printf(" (%.2f MB)", (double)ino->file_size / (1024*1024));
+    } else if (ino->file_size >= 1024) {
+        printf(" (%.2f KB)", (double)ino->file_size / 1024);
+    }
+    printf("\n");
+
+    // Show direct blocks
+    printf("\nDirect blocks:\n");
+    int has_direct = 0;
+    for (int i = 0; i < DIRECT_POINTERS; i++) {
+        if (ino->direct_blocks[i] != 0) {
+            printf("  [%2d] → Block %u\n", i, ino->direct_blocks[i]);
+            has_direct = 1;
+        }
+    }
+    if (!has_direct) {
+        printf("  (none allocated)\n");
+    }
+
+    // Show indirect block
+    printf("\nIndirect block:\n");
+    if (ino->single_indirect != 0) {
+        printf("  Pointer → Block %u\n", ino->single_indirect);
+    } else {
+        printf("  (not allocated)\n");
+    }
+
+    printf("========================================\n");
+}
+
+int ino_is_valid(inode *ino) {
+    if (!ino) {
+        return 0;  // NULL pointer is invalid
+    }
+
+    // Check if inode number is valid (not 0)
+    if (ino->inode_number == 0) {
+        return 0;
+    }
+
+    // Check if file type is valid
+    if (ino->file_type == FTypeNotValid) {
+        return 0;
+    }
+
+    // Valid inode
+    return 1;
+}
+
+uint32_t ino_get_block_count(filesystem *fs, inode *ino) {
+    if (!fs || !ino) {
+        fprintf(stderr, "ino_get_block_count: invalid arguments\n");
+        return 0;
+    }
+
+    uint32_t block_size = fs->dd->block_size;
+
+    // Method 1: Calculate from file_size (logical blocks needed)
+    if (ino->file_size == 0) {
+        return 0;
+    }
+
+    uint32_t blocks_needed = (ino->file_size + block_size - 1) / block_size;
+
+    // Method 2: Count actually allocated blocks (more accurate)
+    uint32_t allocated_blocks = 0;
+
+    // Count direct blocks
+    for (int i = 0; i < DIRECT_POINTERS; i++) {
+        if (ino->direct_blocks[i] != 0) {
+            allocated_blocks++;
+        }
+    }
+
+    // Count indirect blocks (if exists)
+    if (ino->single_indirect != 0) {
+        // Read indirect block and count non-zero entries
+        uint32_t block_number_size = sizeof(uint32_t);
+        uint32_t pointers_per_block = block_size / block_number_size;
+        uint8_t block_buf[block_size];
+
+        if (dread(fs->dd, block_buf, ino->single_indirect) == OK) {
+            uint32_t *block_numbers = (uint32_t *)block_buf;
+            for (uint32_t i = 0; i < pointers_per_block; i++) {
+                if (block_numbers[i] != 0) {
+                    allocated_blocks++;
+                }
+            }
+        }
+    }
+
+    // Return the actual allocated count
+    return allocated_blocks;
+}
+
