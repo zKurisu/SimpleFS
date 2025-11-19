@@ -52,15 +52,19 @@ RC ino_read(filesystem *fs, uint32_t inode_number, inode *ino);
 RC ino_write(filesystem *fs, uint32_t inode_number, inode *ino); // Should check inode number
 
 // Get a available block by block number
-uint32_t ino_alloc_block(filesystem *fs, inode *ino, uint32_t offset);
+// offset is used for creating sparse file easily
+// wrap bl_alloc inside
+uint32_t ino_alloc_block_at(filesystem *fs, inode *ino, uint32_t offset);
 
 // Get block number
-uint8_t ino_get_block(filesystem *fs, inode *ino, uint32_t offset);
+uint32_t ino_get_block_at(filesystem *fs, inode *ino, uint32_t offset);
 
 // Clear a block
-RC ino_free_block(filesystem *fs, inode *ino, uint32_t offset);
+// wrap bl_free inside
+RC ino_free_block_at(filesystem *fs, inode *ino, uint32_t offset);
 
 // Clear all blocks
+// wrap bl_free inside
 RC ino_free_all_blocks(filesystem *fs, inode *ino);
 
 void ino_show(inode *ino);
