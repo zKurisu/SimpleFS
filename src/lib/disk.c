@@ -81,13 +81,13 @@ void dshow(disk *dd) {
 
 RC dread(disk *dd, uint8_t *block, uint32_t blockno) {
     if (!dd || !block) {
-        fprintf(stderr, "dread error, dd or block pointer is null...");
+        fprintf(stderr, "dread error, dd or block pointer is null...\n");
         return ErrArg;
     }
 
     // blockno start from 1
     if (blockno <= 0 || blockno > dd->blocks) { // PAY ATTENTION TO THIS
-        fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d", 
+        fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d\n", 
                 (int)blockno, (int)dd->blocks);
         return ErrArg;
     } 
@@ -96,7 +96,7 @@ RC dread(disk *dd, uint8_t *block, uint32_t blockno) {
     uint32_t offset = (blockno-1)*dd->block_size;
 
     if (pread(dd->fd, block, dd->block_size, offset) < 0) {
-        fprintf(stderr, "dread error, could not read block [%d]...", (int)blockno);
+        fprintf(stderr, "dread error, could not read block [%d]...\n", (int)blockno);
         return ErrDread;
     }
     return OK;
@@ -104,18 +104,18 @@ RC dread(disk *dd, uint8_t *block, uint32_t blockno) {
 
 RC dreads(disk *dd, uint8_t *block, uint32_t start, uint32_t end) {
     if (!dd || !block) {
-        fprintf(stderr, "dreads error, dd or block pointer is null...");
+        fprintf(stderr, "dreads error, dd or block pointer is null...\n");
         return ErrArg;
     }
 
     if (start < 1) {
-        fprintf(stderr, "dreads error, block start from [%d], it should greater equal to 1...",
+        fprintf(stderr, "dreads error, block start from [%d], it should greater equal to 1...\n",
                 (int)start);
         return ErrArg;
     }
 
     if (end < 1 || end > dd->blocks) {
-        fprintf(stderr, "dreads error, block end to [%d], it should in range %d ~ %d...",
+        fprintf(stderr, "dreads error, block end to [%d], it should in range %d ~ %d...\n",
                 (int)end, 1, (int)dd->blocks);
         return ErrArg;
     }
@@ -142,13 +142,13 @@ RC dreads(disk *dd, uint8_t *block, uint32_t start, uint32_t end) {
 
 RC dwrite(disk *dd, uint8_t *block, uint32_t blockno) {
     if (!dd || !block) {
-        fprintf(stderr, "dwrite error, dd or block pointer is null...");
+        fprintf(stderr, "dwrite error, dd or block pointer is null...\n");
         return ErrArg;
     }
 
     // blockno start from 0
     if (blockno <= 0 || blockno > dd->blocks) { // PAY ATTENTION TO THIS
-        fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d", 
+        fprintf(stderr, "Bad blockno provided [%d], should between 0 and %d\n", 
                 (int)blockno, (int)dd->blocks);
         return ErrArg;
     } 
@@ -157,7 +157,7 @@ RC dwrite(disk *dd, uint8_t *block, uint32_t blockno) {
     uint32_t offset = (blockno-1)*dd->block_size;
 
     if (pwrite(dd->fd, block, dd->block_size, offset) < 0) {
-        fprintf(stderr, "dwrite error, could not write block [%d]...", (int)blockno);
+        fprintf(stderr, "dwrite error, could not write block [%d]...\n", (int)blockno);
         return ErrDwrite;
     }
     return OK;
@@ -165,17 +165,17 @@ RC dwrite(disk *dd, uint8_t *block, uint32_t blockno) {
 
 RC dwrites(disk *dd, uint8_t *block, uint32_t start, uint32_t end) {
     if (!dd || !block) {
-        fprintf(stderr, "dwrites error, dd or block pointer is null...");
+        fprintf(stderr, "dwrites error, dd or block pointer is null...\n");
         return ErrArg;
     }
     if (start < 1) {
-        fprintf(stderr, "dreads error, block start from [%d], it should greater equal to 1...",
+        fprintf(stderr, "dreads error, block start from [%d], it should greater equal to 1...\n",
                 (int)start);
         return ErrArg;
     }
 
     if (end < 1 || end > dd->blocks) {
-        fprintf(stderr, "dreads error, block end to [%d], it should in range %d ~ %d...",
+        fprintf(stderr, "dreads error, block end to [%d], it should in range %d ~ %d...\n",
                 (int)end, 1, (int)dd->blocks);
         return ErrArg;
     }
