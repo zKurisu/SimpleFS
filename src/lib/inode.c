@@ -168,6 +168,7 @@ uint32_t ino_get_block_at(filesystem *fs, inode *ino, uint32_t offset) {
         return 0;
     }
 
+
     if (offset < DIRECT_POINTERS) {
         return ino->direct_blocks[offset];
     } else if (!ino->single_indirect) {
@@ -495,3 +496,6 @@ uint32_t ino_get_block_count(filesystem *fs, inode *ino) {
     return allocated_blocks;
 }
 
+uint32_t ino_get_max_block_offset(filesystem *fs) {
+    return DIRECT_POINTERS + fs->dd->block_size / sizeof(uint32_t);
+}

@@ -70,5 +70,6 @@ RC ino_free_all_blocks(filesystem *fs, inode *ino);
 void ino_show(inode *ino);
 int ino_is_valid(inode *ino);
 uint32_t ino_get_block_count(filesystem *fs, inode *ino);
+uint32_t ino_get_max_block_offset(filesystem *fs);
 
 #endif
