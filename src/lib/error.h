@@ -18,7 +18,12 @@ typedef enum {
     ErrNoMem,
     ErrBmCreate,
     ErrBmOpe,
-    ErrInode
+    ErrInode,
+    ErrName,
+    ErrDirentExists,
+    ErrInternal,
+    ErrNotFound,
+    ErrNoSpace
 } RC; // Return Code
 
 #endif
