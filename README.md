@@ -38,7 +38,16 @@
 - ✅ `ino_show`, 打印 inode 信息
 - ✅ `ino_is_valid`, 检查是否保存有 inode number, 类型是否正确
 - ✅ `ino_get_block_count`, 查看 inode 已分配多少 blocks 
-
+- ✅ `ino_get_max_block_offset`, 获取一个 inode 能管理的 blocks 的最大数目
+- ✅ `dirent_check_valid_name`, 检查文件名是否符合要求, 这里是 `[A-Za-z0-9.-_]`
+- ✅ `get_dirent_per_block`, 获取一个 block 能存储的 direntry 数量
+- ✅ `dir_lookup`, 从一个 directory inode 通过 name 查找对应的 inode number
+- ✅ `dir_add`, 向一个 directory inode 中添加一个 directory entry
+- ✅ `dir_remove`, 从一个 directory inode 中移除一个 directory entry
+- ✅ `dir_list`, 列出一个 directory inode 中的所有 directory entries
+- `dir_is_empty`
+- `dir_valid_name`
+- `dir_show`
 
 # Task1
 - 目标: 完成用户态环境下的磁盘模拟功能, 提供磁盘基本信息查询与格式化功能。
