@@ -321,6 +321,9 @@ RC ino_free_all_blocks(filesystem *fs, inode *ino) {
 
     uint32_t offset;
     for (offset=0; offset < DIRECT_POINTERS; offset++) {
+        if (ino->direct_blocks[offset] == 0)
+            continue;
+
         // unset bitmap
         ret = bl_free(fs, ino->direct_blocks[offset]);
         if (ret != OK) {
@@ -349,6 +352,9 @@ RC ino_free_all_blocks(filesystem *fs, inode *ino) {
         uint32_t block_numbers[block_number_per_block];
         memcpy(block_numbers, block_buf, size);
         for (uint32_t n=0; n < block_number_per_block; n++) {
+            if (block_numbers[n] == 0)
+                continue;
+
             ret = bl_free(fs, block_numbers[n]);
             if (ret != OK) {
                 fprintf(stderr, "ino_free_block_at error: failed to free a block at [%d]...\n",
@@ -357,11 +363,10 @@ RC ino_free_all_blocks(filesystem *fs, inode *ino) {
             }
         }
 
-        // clear single_indirect block
-        memset(block_buf, 0, size);
-        ret = dwrite(fs->dd, block_buf, ino->single_indirect);
+        // unset bitmap for single_indirect block
+        ret = bl_free(fs, ino->single_indirect);
         if (ret != OK) {
-            fprintf(stderr, "ino_free_block_at error: failed to write a block at [%d]...\n",
+            fprintf(stderr, "ino_free_block_at error: failed to free a block at [%d]...\n",
                     ino->single_indirect);
             return ret;
         }
