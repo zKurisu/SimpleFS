@@ -51,6 +51,18 @@
 - ✅ `dir_create`, 创建一个普通目录, 添加两个 direntry: `.` 指向自身, `..` 指向父目录
 - ✅ `dir_delete_empty`, 删除一个空目录 (只有 `.` 和 `..` 的目录称空目录)
 - ✅ `dir_show`, 打印 directory 信息
+- `file_open`
+- `file_close`
+- `file_read`
+- `file_write`
+- `file_seek`
+- `file_tell`
+- `file_size`
+- `file_show`
+- `path_parse`
+- `path_to_string`
+- `path_show`
+- `path_is_valid`
 
 
 # Task1
