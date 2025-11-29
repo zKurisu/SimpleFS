@@ -36,16 +36,34 @@ RC dir_list(filesystem *fs, inode *dir_ino);
 /*
  * Check a directory inode, whether it has entries
  */
-RC dir_is_empty(filesystem *fs, inode *dir_ino);
+uint8_t dir_is_empty(filesystem *fs, inode *dir_ino);
 
-// dir_create
-//
-// dir_delete
-//
-//
-int dir_valid_name(const uint8_t *name);
+/*
+ * Create the root directory inode, return inode number.
+ * Root directory's . and .. both point to itself
+ *
+ * This should be called during filesystem formatting
+ */
+uint32_t dir_create_root(filesystem *fs);
 
-// 显示目录内容
+/*
+ * Create a directory inode, return inode number.
+ *   parent_ino is used to create .. entry
+ *
+ *   This function will auto create . and .. entry
+ */
+uint32_t dir_create(filesystem *fs, uint32_t parent_ino);
+
+/*
+ * Delete a directory inode recursively
+ * free all inodes, blocks
+ * init inode, block area
+ */
+RC dir_delete_empty(filesystem *fs, inode *dir_ino);
+
+/*
+ * Display directory infomation
+ */
 void dir_show(filesystem *fs, inode *dir_ino);
 
 #endif
