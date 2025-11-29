@@ -45,9 +45,13 @@
 - ✅ `dir_add`, 向一个 directory inode 中添加一个 directory entry
 - ✅ `dir_remove`, 从一个 directory inode 中移除一个 directory entry
 - ✅ `dir_list`, 列出一个 directory inode 中的所有 directory entries
-- `dir_is_empty`
-- `dir_valid_name`
-- `dir_show`
+- ✅ `dir_is_empty`, directory 是否为空 (可以有 `.` 和 `..`)
+- ✅ `dir_valid_name`, 目录名是否包含错误字符
+- ✅ `dir_create_root`, 创建根目录,  添加两个 direntry: `.` 和 `..` 都指向自身
+- ✅ `dir_create`, 创建一个普通目录, 添加两个 direntry: `.` 指向自身, `..` 指向父目录
+- ✅ `dir_delete_empty`, 删除一个空目录 (只有 `.` 和 `..` 的目录称空目录)
+- ✅ `dir_show`, 打印 directory 信息
+
 
 # Task1
 - 目标: 完成用户态环境下的磁盘模拟功能, 提供磁盘基本信息查询与格式化功能。
