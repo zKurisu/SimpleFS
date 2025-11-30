@@ -10,13 +10,14 @@
 #define MY_PATH_H_
 
 #include "dirent.h"
+#include "error.h"
 
 #include <stdint.h>
 
 #define MAX_PATH_DEPTH 32
 
 struct s_path {
-    uint8_t components[MAX_PATH_DEPTH][MAX_FILENAME_LEN];
+    char components[MAX_PATH_DEPTH][MAX_FILENAME_LEN];
     uint32_t count;         // Number of components
     uint8_t is_absolute;    // 1 if starts with '/', 0 otherwise
 };
@@ -31,7 +32,7 @@ typedef struct s_path path;
  *   "dir/file"   -> relative, ["dir", "file"]
  *   "/a/./b/../c" -> absolute, ["a", "c"]
  */
-RC path_parse(const uint8_t *path_str, path *p);
+RC path_parse(const char *path_str, path *p);
 
 /*
  * Convert path structure back to string
