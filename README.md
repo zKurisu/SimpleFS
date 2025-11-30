@@ -63,6 +63,14 @@
 - `path_to_string`
 - `path_show`
 - `path_is_valid`
+- `fs_touch`
+- `fs_unlink`
+- `fs_mkdir`
+- `fs_rmdir`
+- `fs_ls`
+- `fs_cat`
+- `fs_exists`
+- `fs_stat`
 
 
 # Task1
