@@ -39,6 +39,7 @@
 
 #define MAX_OPEN_FILES 1024
 
+
 struct s_file_handle {
     filesystem *fs;
 
@@ -55,7 +56,29 @@ struct s_file_handle {
 };
 typedef struct s_file_handle file_handle;
 
-file_handle file_table[1024];
+struct s_global_file_table {
+    file_handle *handles[MAX_OPEN_FILES];
+    pthread_mutex_t lock;
+    uint32_t count;
+};
+typedef struct s_global_file_table global_file_table;
+
+extern global_file_table g_file_table;
+
+/*
+ * Init global file table
+ * */
+void file_table_init();
+
+/*
+ * Display global file table content
+ * */
+void file_table_show();
+
+/*
+ * Return current opened file count
+ * */
+uint32_t file_table_count();
 
 /*
  * Wrap inode to file handle

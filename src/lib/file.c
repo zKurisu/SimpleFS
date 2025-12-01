@@ -13,7 +13,16 @@
 #include <string.h>
 #include <pthread.h>
 
-// How to handle with global file table?
+global_file_table g_file_table = {0};
+
+void file_table_init() {
+    pthread_mutex_init(&g_file_table.lock, NULL);
+    for (uint32_t i=0; i<MAX_OPEN_FILES; i++) {
+        g_file_table.handles[i] = NULL;
+    }
+    g_file_table.count = 0;
+}
+
 file_handle *file_open(filesystem *fs, uint32_t inode_num, uint32_t flags) {
     if (!fs || inode_num < 1 || inode_num > fs->inodes || file_check_flags(flags) != OK) {
         fprintf(stderr, "file_open error: error args...\n");
@@ -54,13 +63,54 @@ file_handle *file_open(filesystem *fs, uint32_t inode_num, uint32_t flags) {
         return (file_handle*)0;
     }
 
+    pthread_mutex_lock(&g_file_table.lock);
+
+    uint32_t slot = -1;
+    for (uint32_t i=0; i<MAX_OPEN_FILES; i++) {
+        if (g_file_table.handles[i] == NULL) {
+            slot = i;
+            g_file_table.handles[i] = fh;
+            g_file_table.count++;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_file_table.lock);
+
+    if (slot == -1) {
+        fprintf(stderr, "file_open error: too many open files (%d max)\n", MAX_OPEN_FILES);
+        pthread_rwlock_destroy(&fh->rwlock);
+        free(fh);
+        return NULL;
+    }
+
     return fh;
 }
 
-// How to handle with global file table?
 RC file_close(file_handle *fh) {
+    if (!fh) {
+        fprintf(stderr, "file_close error: wrong args\n");
+        return ErrArg;
+    }
+
+    pthread_rwlock_wrlock(&fh->rwlock);
     fh->refcount--;
-    if (fh->refcount == 0) {
+    uint32_t refcount = fh->refcount;
+    pthread_rwlock_unlock(&fh->rwlock);
+
+    if (refcount == 0) {
+        pthread_mutex_lock(&g_file_table.lock);
+
+        for (int i = 0; i < MAX_OPEN_FILES; i++) {
+            if (g_file_table.handles[i] == fh) {
+                g_file_table.handles[i] = NULL;
+                g_file_table.count--;
+                break;
+            }
+        }
+
+        pthread_mutex_unlock(&g_file_table.lock);
+
+        pthread_rwlock_destroy(&fh->rwlock);
         free(fh);
     }
 
@@ -526,4 +576,40 @@ void file_show(file_handle *fh) {
     }
 
     printf("========================================\n");
+}
+
+void file_table_show() {
+    printf("========================================\n");
+    printf("Global File Table\n");
+    printf("========================================\n");
+
+    pthread_mutex_lock(&g_file_table.lock);
+
+    printf("Open files: %u / %d\n\n", g_file_table.count, MAX_OPEN_FILES);
+
+    if (g_file_table.count > 0) {
+        printf("%-5s %-8s %-8s %-10s %-8s\n",
+                "Slot", "Inode", "Offset", "Flags", "Refcnt");
+        printf("---------------------------------------------\n");
+
+        for (int i = 0; i < MAX_OPEN_FILES; i++) {
+            if (g_file_table.handles[i] != NULL) {
+                file_handle *fh = g_file_table.handles[i];
+                printf("%-5d %-8u %-8u 0x%-8x %-8u\n",
+                        i, fh->inode_number, fh->offset,
+                        fh->flags, fh->refcount);
+            }
+        }
+    }
+
+    printf("========================================\n");
+
+    pthread_mutex_unlock(&g_file_table.lock);
+}
+
+uint32_t file_table_count() {
+    pthread_mutex_lock(&g_file_table.lock);
+    uint32_t count = g_file_table.count;
+    pthread_mutex_unlock(&g_file_table.lock);
+    return count;
 }
