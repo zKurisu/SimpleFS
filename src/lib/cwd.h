@@ -33,7 +33,7 @@ extern cwd_context_t g_cwd;
 /*
  * Init a global cwd structure
  * */
-void cwd_init(filesystem *fs, uint32_t root_inode_num);
+RC cwd_init(filesystem *fs, uint32_t root_inode_num);
 
 /*
  * Get current cwd inode number
