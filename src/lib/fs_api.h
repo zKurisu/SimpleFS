@@ -25,41 +25,41 @@ typedef struct {
 /*
  * Like shell command 'touch', create a file
  * */
-RC fs_touch(filesystem *fs, const uint8_t *path);
+RC fs_touch(filesystem *fs, const char *path_str);
 
 /*
  * Like shell command 'rm', decrease the link count by 1, remove the file when link count is 0
  * */
-RC fs_unlink(filesystem *fs, const uint8_t *path);
+RC fs_unlink(filesystem *fs, const char *path_str);
 
 /*
  * Like shell command 'mkdir', create a directory, could recursively create
  * */
-RC fs_mkdir(filesystem *fs, const uint8_t *path);
+RC fs_mkdir(filesystem *fs, const char *path_str);
 
 /*
  * Like shell command 'rm -r', remove a directory 
  * */
-RC fs_rmdir(filesystem *fs, const uint8_t *path);
+RC fs_rmdir(filesystem *fs, const char *path_str);
 
 /*
  * Like shell command 'ls', list all entries under a directory
  * */
-RC fs_ls(filesystem *fs, const uint8_t *path);
+RC fs_ls(filesystem *fs, const char *path_str);
 
 /*
  * Like shell command 'cat', dump all contents of a file
  * */
-RC fs_cat(filesystem *fs, const uint8_t *path);
+RC fs_cat(filesystem *fs, const char *path_str);
 
 /*
  * Check whether a file is exists
  * */
-RC fs_exists(filesystem *fs, const uint8_t *path);
+RC fs_exists(filesystem *fs, const char *path_str);
 
 /*
  * Like shell command 'stat', get file metadata
  * */
-RC fs_stat(filesystem *fs, const uint8_t *path, f_stat *st);
+RC fs_stat(filesystem *fs, const char *path_str, f_stat *st);
 
 #endif
