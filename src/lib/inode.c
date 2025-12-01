@@ -504,3 +504,7 @@ uint32_t ino_get_block_count(filesystem *fs, inode *ino) {
 uint32_t ino_get_max_block_offset(filesystem *fs) {
     return DIRECT_POINTERS + fs->dd->block_size / sizeof(uint32_t);
 }
+
+uint32_t ino_get_max_filesize(filesystem *fs) {
+    return fs->dd->block_size * ino_get_max_block_offset(fs);
+}

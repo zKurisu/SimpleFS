@@ -72,4 +72,6 @@ int ino_is_valid(inode *ino);
 uint32_t ino_get_block_count(filesystem *fs, inode *ino);
 uint32_t ino_get_max_block_offset(filesystem *fs);
 
+uint32_t ino_get_max_filesize(filesystem *fs);
+
 #endif
