@@ -51,18 +51,23 @@
 - ✅ `dir_create`, 创建一个普通目录, 添加两个 direntry: `.` 指向自身, `..` 指向父目录
 - ✅ `dir_delete_empty`, 删除一个空目录 (只有 `.` 和 `..` 的目录称空目录)
 - ✅ `dir_show`, 打印 directory 信息
-- `file_open`
-- `file_close`
-- `file_read`
-- `file_write`
-- `file_seek`
-- `file_tell`
-- `file_size`
-- `file_show`
-- `path_parse`
-- `path_to_string`
-- `path_show`
-- `path_is_valid`
+- ✅ `path_parse`, 将字符串转换为 path 数据结构, 按 `/` 拆分为 components, 并记录数量, 是否是绝对路径
+- ✅ `path_to_string`, 将 `path` 根据是否是绝对路径拼接回路径字符串
+- ✅ `path_show`, 打印一个 `path` 结构体的信息
+- ✅ `path_is_valid`, 检查 `path` 是否合法
+- ✅ `file_table_init`, 初始化一个全局的 file table
+- ✅ `file_table_show`, 打印全局的 file table 信息
+- ✅ `file_table_count`, 返回已打开的文件句柄数
+- ✅ `file_open`, 按指定 flag 将一个 inode 转为内存中的 file handle
+- ✅ `file_close`, 关闭一个 file handle
+- ✅ `file_read`, 读取指定长度的文件内容
+- ✅ `file_write`, 向文件写入指定长度的内容
+- ✅ `file_seek`, 设置 file handle 的 offset
+- ✅ `file_tell`, 返回当前的 offset
+- ✅ `file_size`, 返回文件大小
+- ✅ `file_show`, 打印文件信息
+- ✅ `file_check_flags`, 检查文件的打开 flags 是否有效
+- ✅ `file_chack_whence`, 检查文件的 offset 是否有效
 - `fs_touch`
 - `fs_unlink`
 - `fs_mkdir`
