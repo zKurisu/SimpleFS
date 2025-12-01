@@ -23,7 +23,9 @@ typedef enum {
     ErrDirentExists,
     ErrInternal,
     ErrNotFound,
-    ErrNoSpace
+    ErrNoSpace,
+    ErrFileFlags,
+    ErrWhence
 } RC; // Return Code
 
 #endif
