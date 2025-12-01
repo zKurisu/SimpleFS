@@ -18,6 +18,12 @@
  */
 uint32_t dir_lookup(filesystem *fs, inode *dir_ino, const uint8_t *name);
 
+
+/*
+ * Find dirent name by inode number
+ */
+RC dir_lookup_by_id(filesystem *fs, inode*dir_ino, uint8_t *buf, uint32_t inode_num);
+
 /*
  * Add a new entry to a directory inode
  */

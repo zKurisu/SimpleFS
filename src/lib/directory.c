@@ -64,6 +64,42 @@ uint32_t dir_lookup(filesystem *fs, inode *dir_ino, const uint8_t *name) {
     return 0; // Could not find one
 }
 
+RC dir_lookup_by_id(filesystem *fs, inode *dir_ino, uint8_t *buf, uint32_t inode_num) {
+    if (!fs || !dir_ino || !buf) {
+        fprintf(stderr, "dir_lookup_by_id error: wrong args");
+        return ErrArg;
+    }
+
+    uint32_t max_ino_block_offset = ino_get_max_block_offset(fs);
+    uint32_t block_size = fs->dd->block_size;
+    uint32_t dirent_per_block = get_dirent_per_block(fs);
+    uint8_t block_buf[block_size];
+    memset(block_buf, 0, block_size);
+    uint32_t block_number;
+    for (uint32_t i=0; i<max_ino_block_offset; i++) {
+        if ((block_number = ino_get_block_at(fs, dir_ino, i)) == 0) {
+            continue;
+        }
+
+        // Find a block
+        if (dread(fs->dd, block_buf, block_number) != OK) {
+            fprintf(stderr, "dir_lookup_by_id error: failed to read block [%d]\n",
+                    block_number);
+            return ErrDread;
+        }
+        dirent *dirent_list = (dirent *)block_buf;
+        for (uint32_t j=0; j<dirent_per_block; j++) {
+            if (dirent_list[j].inode_num == inode_num) {
+                memset(buf, 0, MAX_FILENAME_LEN);
+                memcpy(buf, dirent_list[j].name, MAX_FILENAME_LEN);
+                return OK;
+            }
+        }
+    }
+
+    return ErrNotFound;
+}
+
 RC dir_add(filesystem *fs, inode *dir_ino, const uint8_t *name, uint32_t inode_num) {
     if (!fs || !dir_ino || !name || dirent_check_valid_name(name) != OK
             || inode_num <= 0 || inode_num > fs->inodes) {
