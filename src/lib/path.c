@@ -8,6 +8,7 @@
 
 #include "path.h"
 #include "error.h"
+#include "directory.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -160,3 +161,51 @@ uint8_t path_is_valid(const path *p) {
     return 1;
 }
 
+uint32_t path_lookup(filesystem *fs, inode ino, const path *p) {
+    if (!fs || ino.inode_number == 0 || !p) {
+        fprintf(stderr, "path_lookup error: wrong args\n");
+        return 0;
+    }
+
+    uint32_t inode_num;
+    for (uint32_t i=0; i<p->count; i++) {
+        if ((inode_num = dir_lookup(fs, &ino, (uint8_t*)p->components[i])) != 0) { // Find entry
+            if (ino_read(fs, inode_num, &ino) != OK) { // Prepare for next loop
+                fprintf(stderr, "path_lookup error: failed to read inode [%d]\n",
+                        inode_num);
+                return 0;
+            }
+        } else { // Can not find entry
+            fprintf(stderr, "path_lookup error: can not find [%s] under inode [%d]",
+                    p->components[i], ino.inode_number);
+            return 0;
+        }
+    }
+
+    return inode_num;
+}
+
+
+RC path_merge(path *abs_path, const path *rel_path) {
+    if (!abs_path || !rel_path) {
+        fprintf(stderr, "path_merge error: wrong args\n");
+        return ErrArg;
+    }
+
+    if (abs_path->is_absolute == 0) {
+        fprintf(stderr, "path_merge error: first arg is not absolute path\n");
+        return ErrArg;
+    }
+
+    if (rel_path->is_absolute) {
+        fprintf(stderr, "path_merge error: second arg is not relative path\n");
+        return ErrArg;
+    }
+
+    for (uint32_t i=0; i<rel_path->count; i++)
+        strcpy(abs_path->components[abs_path->count+i], rel_path->components[i]);
+
+    abs_path->count += rel_path->count;
+
+    return OK;
+}

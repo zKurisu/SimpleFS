@@ -11,10 +11,13 @@
 
 #include "dirent.h"
 #include "error.h"
+#include "fs.h"
+#include "inode.h"
 
 #include <stdint.h>
 
 #define MAX_PATH_DEPTH 32
+#define MAX_PATH_LEN 1024 // Acculy is MAX_PATH_LEN * MAX_FILENAME_LEN
 
 struct s_path {
     char components[MAX_PATH_DEPTH][MAX_FILENAME_LEN];
@@ -56,5 +59,17 @@ void path_show(const path *p);
  * Check if path is valid
  */
 uint8_t path_is_valid(const path *p);
+
+/*
+ * From begin_dir_ino to search the last component inode number of path
+ */
+uint32_t path_lookup(filesystem *fs, inode begin_dir_ino, const path *p);
+
+/*
+ * Merge two path components 
+ *  first path should be an absolute path
+ *  second path should be a relative path
+ */
+RC path_merge(path *abs_path, const path *rel_path);
 
 #endif
