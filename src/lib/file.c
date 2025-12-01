@@ -345,3 +345,185 @@ RC file_check_whence(uint8_t whence) {
         return ErrWhence;
     return OK;
 }
+
+void file_show(file_handle *fh) {
+    if (!fh) {
+        fprintf(stderr, "file_show error: null file handle\n");
+        return;
+    }
+
+    printf("========================================\n");
+    printf("File Handle Information\n");
+    printf("========================================\n");
+
+    // Get data protected by lock
+    pthread_rwlock_rdlock(&fh->rwlock);
+
+    if (!fh->cache_valid) {
+        pthread_rwlock_unlock(&fh->rwlock);
+        pthread_rwlock_wrlock(&fh->rwlock);
+
+        if (!fh->cache_valid) {
+            if (ino_read(fh->fs, fh->inode_number, &fh->cached_inode) != OK) {
+                pthread_rwlock_unlock(&fh->rwlock);
+                printf("ERROR: Failed to read inode\n");
+                printf("========================================\n");
+                return;
+            }
+            fh->cache_valid = 1;
+        }
+        pthread_rwlock_unlock(&fh->rwlock);
+        pthread_rwlock_rdlock(&fh->rwlock);
+    }
+
+    // Copy info
+    uint32_t inode_num = fh->inode_number;
+    uint32_t offset = fh->offset;
+    uint32_t flags = fh->flags;
+    uint32_t refcount = fh->refcount;
+    inode ino_copy = fh->cached_inode;
+
+    pthread_rwlock_unlock(&fh->rwlock);
+
+    // === File Handle info ===
+    printf("Inode number:       %u\n", inode_num);
+    printf("Current offset:     %u bytes", offset);
+    if (offset >= 1024*1024) {
+        printf(" (%.2f MB)", (double)offset / (1024*1024));
+    } else if (offset >= 1024) {
+        printf(" (%.2f KB)", (double)offset / 1024);
+    }
+    printf("\n");
+
+    printf("Reference count:    %u\n", refcount);
+
+    // === Open flags ===
+    printf("\nOpen flags:         0x%02x\n", flags);
+    printf("  Access mode:      ");
+    uint32_t accmode = flags & MY_ACCMODE;
+    switch (accmode) {
+        case MY_O_RDONLY:
+            printf("RDONLY (read-only)\n");
+            break;
+        case MY_O_WRONLY:
+            printf("WRONLY (write-only)\n");
+            break;
+        case MY_O_RDWR:
+            printf("RDWR (read-write)\n");
+            break;
+        default:
+            printf("INVALID (0x%x)\n", accmode);
+            break;
+    }
+
+    // Other flags
+    if (flags & MY_O_CREATE) printf("  + CREATE\n");
+    if (flags & MY_O_APPEND) printf("  + APPEND\n");
+    if (flags & MY_O_TRUNC)  printf("  + TRUNC\n");
+
+    // === File info ===
+    printf("\nFile information:\n");
+
+    const char *type_str;
+    switch (ino_copy.file_type) {
+        case FTypeNotValid:
+            type_str = "Invalid";
+            break;
+        case FTypeFile:
+            type_str = "Regular File";
+            break;
+        case FTypeDirectory:
+            type_str = "Directory";
+            break;
+        default:
+            type_str = "Unknown";
+            break;
+    }
+    printf("  Type:             %s\n", type_str);
+
+    printf("  Size:             %u bytes", ino_copy.file_size);
+    if (ino_copy.file_size >= 1024*1024) {
+        printf(" (%.2f MB)", (double)ino_copy.file_size / (1024*1024));
+    } else if (ino_copy.file_size >= 1024) {
+        printf(" (%.2f KB)", (double)ino_copy.file_size / 1024);
+    }
+    printf("\n");
+
+    // === Block usage ===
+    printf("\nBlock allocation:\n");
+
+    // statistics of allocated blocks
+    uint32_t direct_blocks = 0;
+    for (int i = 0; i < DIRECT_POINTERS; i++) {
+        if (ino_copy.direct_blocks[i] != 0) {
+            direct_blocks++;
+        }
+    }
+
+    // Check indirect block
+    uint32_t indirect_blocks = 0;
+    if (ino_copy.single_indirect != 0) {
+        uint32_t block_size = fh->fs->dd->block_size;
+        uint8_t indirect_buf[block_size];
+
+        if (dread(fh->fs->dd, indirect_buf, ino_copy.single_indirect) == OK) {
+            uint32_t *block_nums = (uint32_t*)indirect_buf;
+            uint32_t entries = block_size / sizeof(uint32_t);
+
+            for (uint32_t i = 0; i < entries; i++) {
+                if (block_nums[i] != 0) {
+                    indirect_blocks++;
+                }
+            }
+        }
+    }
+
+    printf("  Direct blocks:    %u allocated\n", direct_blocks);
+    printf("  Indirect blocks:  %u allocated\n", indirect_blocks);
+    printf("  Total blocks:     %u\n", direct_blocks + indirect_blocks);
+
+    // Real Disk usage
+    uint32_t total_blocks = direct_blocks + indirect_blocks;
+    if (ino_copy.single_indirect != 0) {
+        total_blocks++;  // Indirect block itself
+    }
+    uint32_t disk_usage = total_blocks * fh->fs->dd->block_size;
+    printf("  Disk usage:       %u bytes", disk_usage);
+    if (disk_usage >= 1024*1024) {
+        printf(" (%.2f MB)", (double)disk_usage / (1024*1024));
+    } else if (disk_usage >= 1024) {
+        printf(" (%.2f KB)", (double)disk_usage / 1024);
+    }
+    printf("\n");
+
+    // Sparse file info
+    if (ino_copy.file_size > 0 && disk_usage > 0) {
+        double ratio = (double)ino_copy.file_size / disk_usage;
+        if (ratio > 1.1) {
+            printf("  Sparse file:      Yes (%.1fx sparse ratio)\n", ratio);
+        } else {
+            printf("  Sparse file:      No\n");
+        }
+    }
+
+    // === Position info ===
+    printf("\nPosition:\n");
+    if (ino_copy.file_size > 0) {
+        double progress = (double)offset / ino_copy.file_size * 100;
+        printf("  Progress:         %.1f%% (%u / %u bytes)\n",
+               progress, offset, ino_copy.file_size);
+
+        if (offset == 0) {
+            printf("  Status:           At beginning\n");
+        } else if (offset >= ino_copy.file_size) {
+            printf("  Status:           At EOF\n");
+        } else {
+            printf("  Status:           In middle\n");
+            printf("  Remaining:        %u bytes\n", ino_copy.file_size - offset);
+        }
+    } else {
+        printf("  Progress:         N/A (empty file)\n");
+    }
+
+    printf("========================================\n");
+}
