@@ -68,6 +68,12 @@
 - ✅ `file_show`, 打印文件信息
 - ✅ `file_check_flags`, 检查文件的打开 flags 是否有效
 - ✅ `file_chack_whence`, 检查文件的 offset 是否有效
+- `cwd_init`
+- `cwd_get_inode`
+- `cwd_get_path`
+- `cwd_chdir_inode`
+- `cwd_chdir_path`
+- `cwd_show`
 - `fs_touch`
 - `fs_unlink`
 - `fs_mkdir`
