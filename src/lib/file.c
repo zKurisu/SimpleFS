@@ -159,7 +159,7 @@ uint32_t file_read(file_handle *fh, uint8_t *buf, uint32_t size) {
 
     uint8_t block_buf[block_size];
     uint32_t cur_block_idx = start_block_idx;
-    while (bytes_read > size) {
+    while (bytes_read < size) {
         uint32_t physical_block = ino_get_block_at(fh->fs, &fh->cached_inode, cur_block_idx);
 
         uint32_t copy_size = block_size - block_offset;
@@ -198,7 +198,7 @@ uint32_t file_write(file_handle *fh, uint8_t *buf, uint32_t size) {
     }
 
     uint32_t accmode = fh->flags & MY_ACCMODE;
-    if ((accmode != MY_O_WRONLY) || (accmode != MY_O_RDWR)) {
+    if ((accmode != MY_O_WRONLY) && (accmode != MY_O_RDWR)) {
         fprintf(stderr, "file_write error: error file handle flags %x\n",
             fh->flags);
         return 0;
@@ -369,8 +369,8 @@ RC file_check_flags(uint32_t flags) {
     }
 
     uint8_t access_mode = flags & MY_ACCMODE;
-    if (access_mode != MY_O_RDONLY |
-        access_mode != MY_O_WRONLY |
+    if (access_mode != MY_O_RDONLY &&
+        access_mode != MY_O_WRONLY &&
         access_mode != MY_O_RDWR) {
         fprintf(stderr, "file_check_flags error: invalid access mode flag %x\n", access_mode);
         return ErrFileFlags;
