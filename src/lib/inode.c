@@ -219,6 +219,11 @@ uint32_t ino_alloc_block_at(filesystem *fs, inode *ino, uint32_t offset) {
         fprintf(stderr, "ino_alloc_block error: failed to alloc a block number...\n");
         return 0;
     }
+    if (bl_clean(fs, block_number) != 0) {
+        fprintf(stderr, "ino_alloc_block error: failed to init a block...\n");
+        bl_free(fs, block_number);
+        return 0;
+    }
 
     // If offset point to direct blocks
     if (offset < DIRECT_POINTERS) {

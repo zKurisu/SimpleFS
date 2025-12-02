@@ -123,6 +123,10 @@ RC dir_add(filesystem *fs, inode *dir_ino, const uint8_t *name, uint32_t inode_n
     if (block_used_space == 0) { // No free space, allocate a new one
         for (uint32_t n=0; n<max_block_offset; n++) {
             if ((block_number = ino_alloc_block_at(fs, dir_ino, n)) != 0) { // Suc to allocate
+                if (bl_clean(fs, block_number) != OK) {
+                    fprintf(stderr, "dir_add error: failed to clean block\n");
+                    return ErrDwrite;
+                }
                 break;
             }
         }
@@ -429,7 +433,8 @@ uint32_t dir_create(filesystem *fs, uint32_t parent_ino) {
 
     // fs is not null
     if (parent_ino < 1 || parent_ino > fs->inodes) {
-        fprintf(stderr, "dir_create error: parent_ino is not valid...\n");
+        fprintf(stderr, "dir_create error: parent_ino [%d] is not valid...\n",
+                parent_ino);
         return 0;
     }
 
