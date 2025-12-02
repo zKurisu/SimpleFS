@@ -22,6 +22,7 @@
 - ✅ `bl_get_data`, 获取 block 的 data 字段
 - ✅ `bl_alloc`, 查阅并更新 block bitmap, 分配一个可用的 block number (置为 1 表示已占用)
 - ✅ `bl_free`, 查阅并更新 block bitmap, 释放一个 block number (置为 0 表示未占用)
+- ✅ `bl_clean`, 初始化一个全 0 block
 - ✅ `fs_format`, 用 fs 中定义的一些常量初始化 disk (操作磁盘文件)
 - ✅ `fs_mount`, 读取 disk 文件信息, 初始化 filesystem 结构体
 - ✅ `fs_unmount`, 释放 filesystem 结构体
@@ -75,15 +76,15 @@
 - ✅ `cwd_get_path`, 获取当前工作目录的 `path` 信息
 - ✅ `cwd_chdir_inode`, 用 `inode number` 来变更当前工作目录
 - ✅ `cwd_chdir_path`, 用 `path` 来变更当前工作目录
-- ✅ `cwd_show`
-- `fs_touch`
-- `fs_unlink`
-- `fs_mkdir`
-- `fs_rmdir`
-- `fs_ls`
-- `fs_cat`
-- `fs_exists`
-- `fs_stat`
+- ✅ `cwd_show`, 打印当前工作目录
+- ✅ `fs_touch`, 创建一个文件, 类似 `touch` 命令
+- ✅ `fs_unlink`, 删除一个文件, 类似 `rm` 命令
+- ✅ `fs_mkdir`, 递归创建一个目录, 类似 `mkdir -R`
+- ✅ `fs_rmdir`, 递归删除一个目录, 类似 `rm -r`
+- ✅ `fs_ls`, 列出一个目录下的所有文件/目录
+- ✅ `fs_cat`, 查看文件内容
+- ✅ `fs_exists`, 查看文件是否存在
+- ✅ `fs_stat`, 获取文件元信息
 
 
 # Task1
