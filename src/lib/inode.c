@@ -316,7 +316,6 @@ RC ino_free_block_at(filesystem *fs, inode *ino, uint32_t offset) {
 
 RC ino_free_all_blocks(filesystem *fs, inode *ino) {
     uint32_t block_number_size = (sizeof(uint32_t));
-    uint32_t max_offset = DIRECT_POINTERS + fs->dd->block_size/block_number_size; // Block number is uint32_t type
     if (!fs || !ino) {
         fprintf(stderr, "ino_free_block_at error: wrong arguments...\n");
         return ErrArg;
@@ -472,8 +471,6 @@ uint32_t ino_get_block_count(filesystem *fs, inode *ino) {
     if (ino->file_size == 0) {
         return 0;
     }
-
-    uint32_t blocks_needed = (ino->file_size + block_size - 1) / block_size;
 
     // Method 2: Count actually allocated blocks (more accurate)
     uint32_t allocated_blocks = 0;

@@ -8,12 +8,12 @@
 
 #include "block.h"
 #include "inode.h"
-#include "helper.h"
 #include "bitmap.h"
 #include "error.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 uint32_t get_inode_per_block(disk *dd) {
     uint32_t ret, size;
@@ -42,7 +42,7 @@ block *bl_create(disk* dd, blocktype type) {
 
     size = sizeof(struct s_block);
     bl = (block *)malloc(size);
-    zero((uint8_t*)bl, size);
+    memset(bl, 0, size);
     if (!bl) {
         fprintf(stderr, "No enough memory for allocating a super block, usage [%lld]...\n",
                 (long long)size);
@@ -53,7 +53,7 @@ block *bl_create(disk* dd, blocktype type) {
     bl->block_size = dd->block_size;
     size = dd->block_size;
     bl->data = (uint8_t *)malloc(size);
-    zero((uint8_t*)(bl->data), size);
+    memset(bl->data, 0, size);
     if (!(bl->data)) {
         fprintf(stderr, "No enough memory for allocating a super block, usage [%lld]...\n",
                 (long long)size);

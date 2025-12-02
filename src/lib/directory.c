@@ -198,7 +198,6 @@ RC dir_remove(filesystem *fs, inode *dir_ino, const uint8_t *name) {
     uint32_t block_size = fs->dd->block_size;
     uint8_t block_buf[block_size];
     uint32_t dirent_per_block = get_dirent_per_block(fs);
-    uint32_t dirent_size = sizeof(struct s_dirent);
     uint32_t max_offset = ino_get_max_block_offset(fs);
 
     // 遍历所有块，找到并删除该条目

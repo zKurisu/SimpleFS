@@ -14,7 +14,6 @@
 
 bitmap *bm_create(uint32_t size) {
     bitmap *bm;
-    int8_t ret;
 
     if (size <= 0) {
         fprintf(stderr, "You should provide a size bigger than 0\n");

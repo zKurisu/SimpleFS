@@ -459,7 +459,6 @@ RC fs_ls(filesystem *fs, const char *path_str) {
         return ErrInode;
     }
 
-    // Free directory entries
     uint32_t max_block_offset = ino_get_max_block_offset(fs);
     uint32_t dirent_per_block = get_dirent_per_block(fs);
     uint32_t block_size = fs->dd->block_size;

@@ -13,18 +13,8 @@
 
 #define MAX_DISKS 10
 #define MIN_BLOCK_SIZE 512
-static char *disk_paths[MAX_DISKS] = {
-    "/tmp/disk0.img",
-    "/tmp/disk1.img",
-    "/tmp/disk2.img",
-    "/tmp/disk3.img",
-    "/tmp/disk4.img",
-    "/tmp/disk5.img",
-    "/tmp/disk6.img",
-    "/tmp/disk7.img",
-    "/tmp/disk8.img",
-    "/tmp/disk9.img",
-};
+
+extern char *disk_paths[MAX_DISKS];
 
 typedef uint8_t diskno; // Using to find disk file
 

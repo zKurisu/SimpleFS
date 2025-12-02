@@ -8,13 +8,26 @@
 
 #include "disk.h"
 #include "error.h"
-#include "helper.h"
 
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <string.h>
+
+char *disk_paths[MAX_DISKS] = {
+    "/tmp/disk0.img",
+    "/tmp/disk1.img",
+    "/tmp/disk2.img",
+    "/tmp/disk3.img",
+    "/tmp/disk4.img",
+    "/tmp/disk5.img",
+    "/tmp/disk6.img",
+    "/tmp/disk7.img",
+    "/tmp/disk8.img",
+    "/tmp/disk9.img",
+};
 
 RC dattach(disk *dd, uint32_t block_size, diskno disk_id) {
     uint16_t size;
@@ -25,7 +38,7 @@ RC dattach(disk *dd, uint32_t block_size, diskno disk_id) {
         return ErrAttach;
     
     size = sizeof(struct s_disk);
-    zero((uint8_t*)dd, size);
+    memset(dd, 0, size);
 
     dd->block_size = block_size;
     dd->id = disk_id;

@@ -44,4 +44,7 @@ RC fs_mount(disk *dd, filesystem *fs);   // Init a filesystem struct
 RC fs_unmount(filesystem *fs);           // Destroy a filesystem struct
 RC fs_show(filesystem *fs); // display filesystem infomation
 
+// Helper function
+uint32_t cal_needed_bitmap_blocks(uint32_t bits, uint32_t block_size);
+
 #endif
