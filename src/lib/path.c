@@ -167,7 +167,7 @@ uint32_t path_lookup(filesystem *fs, inode ino, const path *p) {
         return 0;
     }
 
-    uint32_t inode_num;
+    uint32_t inode_num = 1;
     for (uint32_t i=0; i<p->count; i++) {
         if ((inode_num = dir_lookup(fs, &ino, (uint8_t*)p->components[i])) != 0) { // Find entry
             if (ino_read(fs, inode_num, &ino) != OK) { // Prepare for next loop
