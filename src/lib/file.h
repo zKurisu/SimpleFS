@@ -84,7 +84,7 @@ uint32_t file_table_count();
  * Wrap inode to file handle
  * */
 
-file_handle *file_open(filesystem *fs, uint32_t inode_num, uint32_t flags);
+file_handle *file_open(filesystem *fs, const char *path_str, uint32_t flags);
 
 /*
  * Close a file handle, free resources

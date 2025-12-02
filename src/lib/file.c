@@ -7,6 +7,8 @@
  */
 
 #include "file.h"
+#include "block.h"
+#include "cwd.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,14 +25,51 @@ void file_table_init() {
     g_file_table.count = 0;
 }
 
-file_handle *file_open(filesystem *fs, uint32_t inode_num, uint32_t flags) {
-    if (!fs || inode_num < 1 || inode_num > fs->inodes || file_check_flags(flags) != OK) {
+file_handle *file_open(filesystem *fs, const char *path_str, uint32_t flags) {
+    if (!fs || !path_str || file_check_flags(flags) != OK) {
         fprintf(stderr, "file_open error: error args...\n");
         return (file_handle*)0;
     }
 
+    if (path_str[strlen(path_str)-1] == '/') { // open only allowed to create file
+        fprintf(stderr, "file_open error: path_str should be a file path, not directory\n");
+        return (file_handle*)0;
+    }
+
+    path p;
+    uint32_t size = sizeof(struct s_path);
+    memset(&p, 0, size);
+
+    if (path_parse(path_str, &p) != OK) {
+        fprintf(stderr, "fs_touch error: failed to parse path_str [%s] to path structure...\n",
+                path_str);
+        return (file_handle*)0;
+    }
+
+    inode ino;
+    uint32_t inode_num;
+    if (p.is_absolute) {
+        inode_num = 1; // Hard encode, root dir inode num
+    } else { // relative path
+        pthread_rwlock_rdlock(&g_cwd.rwlock);
+        inode_num = g_cwd.cwd_inode_num;
+        pthread_rwlock_unlock(&g_cwd.rwlock);
+    }
+
+    if (ino_read(fs, inode_num, &ino) != OK) {
+        fprintf(stderr, "fs_touch error: failed to read base inode [%d]\n",
+                inode_num);
+        return (file_handle*)0;
+    }
+
+    // Check whether file exists
+    if ((inode_num = path_lookup(fs, ino, &p)) == 0) {
+        fprintf(stderr, "fs_touch error: file does not exists [%s]\n",
+                path_str);
+        return (file_handle*)0;
+    }
+
     file_handle *fh;
-    uint32_t size;
 
     size = sizeof(struct s_file_handle);
     fh = (file_handle *)malloc(size);
@@ -240,6 +279,10 @@ uint32_t file_write(file_handle *fh, uint8_t *buf, uint32_t size) {
 
         if (physical_block == 0) {
             physical_block = ino_alloc_block_at(fh->fs, &fh->cached_inode, cur_block_idx);
+            if (bl_clean(fh->fs, physical_block) != OK) {
+                fprintf(stderr, "file_write error: failed to init a block\n");
+                return ErrDwrite;
+            }
 
             if (physical_block == 0) {
                 fprintf(stderr, "file_write error: failed to allocate block\n");
