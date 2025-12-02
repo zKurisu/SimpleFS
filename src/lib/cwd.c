@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 cwd_context_t g_cwd = {0};
 
@@ -61,8 +62,7 @@ void cwd_get_path(path *p) {
 
 RC cwd_chdir_inode(uint32_t new_inode_num) {
     pthread_rwlock_rdlock(&g_cwd.rwlock);
-    filesystem fs;
-    memcpy(&fs, g_cwd.fs, sizeof(struct s_filesystem));
+    filesystem fs = *g_cwd.fs;
     pthread_rwlock_unlock(&g_cwd.rwlock);
 
     inode ino;
@@ -75,7 +75,7 @@ RC cwd_chdir_inode(uint32_t new_inode_num) {
     char reverse_components[MAX_PATH_DEPTH][MAX_FILENAME_LEN];
     uint32_t depth = 0;
 
-    while (parent_ino_num != cur_ino_num) { // parent_ino_num == cur_ino_num mean root directory, end
+    while (depth < MAX_PATH_DEPTH) { // parent_ino_num == cur_ino_num mean root directory, end
         if (ino_read(&fs, cur_ino_num, &ino) != OK) {
             fprintf(stderr, "cwd_chdir_inode error: failed to read inode [%d]\n",
                     cur_ino_num);
@@ -89,13 +89,25 @@ RC cwd_chdir_inode(uint32_t new_inode_num) {
         }
 
         parent_ino_num  = dir_lookup(&fs, &ino, parent_ino_name);
-        if (dir_lookup_by_id(&fs, &ino, buf, new_inode_num) != OK) {
+        if (parent_ino_num == cur_ino_num) {
+            break;
+        }
+
+        if (ino_read(&fs, parent_ino_num, &ino) != OK) {
+            fprintf(stderr, "cwd_chdir_inode error: failed to read inode [%d]\n",
+                    parent_ino_num);
+            return ErrInode;
+        }
+
+        if (dir_lookup_by_id(&fs, &ino, buf, cur_ino_num) != OK) {
             fprintf(stderr, "cwd_chdir_inode error: can not find inode [%d] under dir [%s]",
-                    new_inode_num, parent_ino_name);
+                    cur_ino_num, parent_ino_name);
             return ErrInode;
         }
         // Get current name, buf how to store, no depth info now
         memcpy(reverse_components[depth++], buf, MAX_FILENAME_LEN);
+        cur_ino_num = parent_ino_num;
+        parent_ino_num = 0;
     }
 
     path new_p;
@@ -142,8 +154,7 @@ RC cwd_chdir_path(const char *path_str) {
     inode ino;
     memcpy(&ino, &g_cwd.cached_cwd_inode, sizeof(struct s_inode));
 
-    filesystem fs;
-    memcpy(&fs, &g_cwd.fs, sizeof(struct s_filesystem));
+    filesystem fs = *g_cwd.fs;
     pthread_rwlock_unlock(&g_cwd.rwlock);
 
     uint32_t inode_num;
@@ -155,14 +166,18 @@ RC cwd_chdir_path(const char *path_str) {
     }
     // else p is relative path
     if ((inode_num = path_lookup(&fs, ino, &p)) == 0) {
-        fprintf(stderr, "cwd_chdir_path error: failed find inode number for path");
+        fprintf(stderr, "cwd_chdir_path error: failed find inode number for path\n");
         return ErrPath;
     }
 
     pthread_rwlock_wrlock(&g_cwd.rwlock);
-    if (path_merge(&g_cwd.p, &p) != OK) {
-        fprintf(stderr, "cwd_chdir_path error: failed to merge path\n");
-        return ErrInternal;
+    if (p.is_absolute) {
+        memcpy(&g_cwd.p, &p, sizeof(struct s_path));
+    } else {
+        if (path_merge(&g_cwd.p, &p) != OK) {
+            fprintf(stderr, "cwd_chdir_path error: failed to merge path\n");
+            return ErrInternal;
+        }
     }
     g_cwd.cwd_inode_num = inode_num;
     memcpy(&g_cwd.cached_cwd_inode, &ino, sizeof(struct s_inode));

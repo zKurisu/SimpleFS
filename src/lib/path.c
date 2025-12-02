@@ -176,7 +176,7 @@ uint32_t path_lookup(filesystem *fs, inode ino, const path *p) {
                 return 0;
             }
         } else { // Can not find entry
-            fprintf(stderr, "path_lookup error: can not find [%s] under inode [%d]",
+            fprintf(stderr, "path_lookup error: can not find [%s] under inode [%d]\n",
                     p->components[i], ino.inode_number);
             return 0;
         }
