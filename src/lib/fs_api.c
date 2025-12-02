@@ -465,6 +465,7 @@ RC fs_ls(filesystem *fs, const char *path_str) {
     uint8_t block_buf[block_size];
     uint32_t block_number;
     inode inner_ino;
+    printf("Type Size(bytes)\n");
     for (uint32_t i=0; i<max_block_offset; i++) {
         if ((block_number = ino_get_block_at(fs, &target_ino, i)) == 0)
             continue;
@@ -484,11 +485,14 @@ RC fs_ls(filesystem *fs, const char *path_str) {
                         dirent_list[j].inode_num);
                     return ErrInode;
                 }
+
+                char type_prefix;
                 if (inner_ino.file_type == FTypeFile) {
-                    printf("f: %s\n", dirent_list[j].name);
+                    type_prefix = 'f';
                 } else if (inner_ino.file_type == FTypeDirectory) {
-                    printf("d: %s\n", dirent_list[j].name);
+                    type_prefix = 'd';
                 }
+                printf("%c.   %-32d    %s \n",type_prefix, inner_ino.file_size, dirent_list[j].name);
             }
         }
     }
