@@ -42,6 +42,7 @@
 - ✅ `dirent_check_valid_name`, 检查文件名是否符合要求, 这里是 `[A-Za-z0-9.-_]`
 - ✅ `get_dirent_per_block`, 获取一个 block 能存储的 direntry 数量
 - ✅ `dir_lookup`, 从一个 directory inode 通过 name 查找对应的 inode number
+- ✅ `dir_lookup_by_id`, 从一个 directory inode 通过 inode number 查找对应的文件的名字
 - ✅ `dir_add`, 向一个 directory inode 中添加一个 directory entry
 - ✅ `dir_remove`, 从一个 directory inode 中移除一个 directory entry
 - ✅ `dir_list`, 列出一个 directory inode 中的所有 directory entries
@@ -55,6 +56,7 @@
 - ✅ `path_to_string`, 将 `path` 根据是否是绝对路径拼接回路径字符串
 - ✅ `path_show`, 打印一个 `path` 结构体的信息
 - ✅ `path_is_valid`, 检查 `path` 是否合法
+- ✅ `path_lookup`, 从一个 inode 查找制定 `path` 的 inode number
 - ✅ `file_table_init`, 初始化一个全局的 file table
 - ✅ `file_table_show`, 打印全局的 file table 信息
 - ✅ `file_table_count`, 返回已打开的文件句柄数
@@ -68,12 +70,12 @@
 - ✅ `file_show`, 打印文件信息
 - ✅ `file_check_flags`, 检查文件的打开 flags 是否有效
 - ✅ `file_chack_whence`, 检查文件的 offset 是否有效
-- `cwd_init`
-- `cwd_get_inode`
-- `cwd_get_path`
-- `cwd_chdir_inode`
-- `cwd_chdir_path`
-- `cwd_show`
+- ✅ `cwd_init`, 初始化全局的 `g_cwd` 对象, 所有进程都能访问
+- ✅ `cwd_get_inode`, 获取当前工作目录的 inode nunber
+- ✅ `cwd_get_path`, 获取当前工作目录的 `path` 信息
+- ✅ `cwd_chdir_inode`, 用 `inode number` 来变更当前工作目录
+- ✅ `cwd_chdir_path`, 用 `path` 来变更当前工作目录
+- ✅ `cwd_show`
 - `fs_touch`
 - `fs_unlink`
 - `fs_mkdir`
