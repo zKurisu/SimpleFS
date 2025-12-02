@@ -128,3 +128,20 @@ RC bl_free(filesystem *fs, uint32_t block_number) {
     return OK;
 }
 
+RC bl_clean(filesystem *fs, uint32_t block_number) {
+    if (!fs || block_number <= 0 || block_number > fs->blocks) {
+        fprintf(stderr, "bl_clean error: wrong args...\n");
+        return 0;
+    }
+
+    uint32_t block_size = fs->dd->block_size;
+    uint8_t block_buf[block_size];
+    memset(block_buf, 0, block_size);
+    if (dwrite(fs->dd, block_buf, block_number) != OK) {
+        fprintf(stderr, "bl_clean error: failed to write to block [%d]\n",
+                block_number);
+        return ErrDwrite;
+    }
+
+    return OK;
+}

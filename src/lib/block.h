@@ -71,4 +71,8 @@ uint32_t bl_alloc(filesystem *fs);
 // Free a block
 // This will edit block bitmap
 RC bl_free(filesystem *fs, uint32_t block_number);
+
+// Write 0 to disk
+RC bl_clean(filesystem *fs, uint32_t block_number);
+
 #endif
