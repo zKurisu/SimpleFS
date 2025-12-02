@@ -60,6 +60,58 @@ void cwd_get_path(path *p) {
 }
 
 RC cwd_chdir_inode(uint32_t new_inode_num) {
+    pthread_rwlock_rdlock(&g_cwd.rwlock);
+    filesystem fs;
+    memcpy(&fs, g_cwd.fs, sizeof(struct s_filesystem));
+    pthread_rwlock_unlock(&g_cwd.rwlock);
+
+    inode ino;
+    uint32_t cur_ino_num = new_inode_num;
+    uint8_t *parent_ino_name = (uint8_t*)"..";
+    uint32_t parent_ino_num = 0; // Just init, not valid inode number
+    uint8_t buf[MAX_FILENAME_LEN];
+    // path is      : /home/jie/Documents/homework
+    // store here is: ["homework", "Documents", "jie", "home"]
+    char reverse_components[MAX_PATH_DEPTH][MAX_FILENAME_LEN];
+    uint32_t depth = 0;
+
+    while (parent_ino_num != cur_ino_num) { // parent_ino_num == cur_ino_num mean root directory, end
+        if (ino_read(&fs, cur_ino_num, &ino) != OK) {
+            fprintf(stderr, "cwd_chdir_inode error: failed to read inode [%d]\n",
+                    cur_ino_num);
+            return ErrInode;
+        }
+
+        if (ino.file_type != FTypeDirectory) {
+            fprintf(stderr, "cwd_chdir_inode error: inode [%d] is not a directory\n",
+                    new_inode_num);
+            return ErrInode;
+        }
+
+        parent_ino_num  = dir_lookup(&fs, &ino, parent_ino_name);
+        if (dir_lookup_by_id(&fs, &ino, buf, new_inode_num) != OK) {
+            fprintf(stderr, "cwd_chdir_inode error: can not find inode [%d] under dir [%s]",
+                    new_inode_num, parent_ino_name);
+            return ErrInode;
+        }
+        // Get current name, buf how to store, no depth info now
+        memcpy(reverse_components[depth++], buf, MAX_FILENAME_LEN);
+    }
+
+    path new_p;
+    memset(&new_p, 0, sizeof(struct s_path));
+    new_p.count = depth;
+    new_p.is_absolute = 1;
+    for (uint32_t i=0; i<depth; i++)
+        memcpy(new_p.components[depth-i-1], reverse_components[i], MAX_FILENAME_LEN);
+
+    pthread_rwlock_wrlock(&g_cwd.rwlock);
+    g_cwd.cwd_inode_num = new_inode_num;
+    g_cwd.cache_valid = 0;
+
+    memcpy(&g_cwd.p, &new_p, sizeof(struct s_path));
+    pthread_rwlock_unlock(&g_cwd.rwlock);
+
     return OK;
 }
 
