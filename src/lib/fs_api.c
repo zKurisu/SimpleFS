@@ -387,6 +387,7 @@ RC fs_rmdir(filesystem *fs, const char *path_str) {
                         return ErrInternal;
                     }
                 }
+                dir_remove(fs, &target_ino, dirent_list[j].name);
             }
         }
     }
@@ -482,7 +483,7 @@ RC fs_ls(filesystem *fs, const char *path_str) {
             if (dirent_list[j].inode_num != 0) {
                 // Check inode type
                 if (ino_read(fs, dirent_list[j].inode_num, &inner_ino) != OK) {
-                    fprintf(stderr, "fs_ls error: failed to read inode [%d]",
+                    fprintf(stderr, "fs_ls error: failed to read inode [%d]\n",
                         dirent_list[j].inode_num);
                     return ErrInode;
                 }
