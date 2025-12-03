@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#define MAX_FILENAME_LEN 28 // 255 
+#define MAX_FILENAME_LEN 252 // ori is 28, 255 
 #define VALID_NAME_SPECIAL_CHARS (uint8_t*)"._-" // Special chars
 
 // 32 bytes now
