@@ -37,7 +37,6 @@ TEST_TARGET := $(BUILD_DIR)/test
 
 all: build
 
-build: $(TARGET)
 
 $(TARGET): $(TARGET_SRC) $(LIB_OBJS)
 	@mkdir -p $(BUILD_DIR)
@@ -56,13 +55,20 @@ clean:
 # ============================================
 # Utils
 # ============================================
+UTIL_SRCS  := $(wildcard $(UTILS_DIR)/*.c)
+UTIL_EXECS := $(patsubst $(UTILS_DIR)/%.c,$(BUILD_DIR)/my_%,$(UTIL_SRCS))
+
+$(UTIL_EXECS): $(BUILD_DIR)/my_%: $(UTILS_DIR)/%.c $(LIB_OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
 cmd-%: $(BUILD_DIR)/my_%
-	./$<
+	@echo "build util: $*"
 
 $(BUILD_DIR)/my_%: $(UTILS_DIR)/%.c $(LIB_OBJS)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CLAGS) $^ -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
+build: $(TARGET) $(UTIL_EXECS)
 # ============================================
 # Test
 # ============================================
