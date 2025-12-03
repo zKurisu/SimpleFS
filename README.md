@@ -79,6 +79,7 @@
 - ✅ `cwd_show`, 打印当前工作目录
 - ✅ `fs_touch`, 创建一个文件, 类似 `touch` 命令
 - ✅ `fs_unlink`, 删除一个文件, 类似 `rm` 命令
+- ✅ `fs_cp`, 复制一个文件/目录, 类似 `cp` 命令
 - ✅ `fs_mkdir`, 递归创建一个目录, 类似 `mkdir -R`
 - ✅ `fs_rmdir`, 递归删除一个目录, 类似 `rm -r`
 - ✅ `fs_ls`, 列出一个目录下的所有文件/目录
@@ -95,6 +96,7 @@
 - ✅ `my_rmdir`, 递归删除目录
 - ✅ `my_ls`, 列出目录下的内容 (不递归)
 - ✅ `my_touch`, 创建文件
+- ✅ `my_cp`, 复制文件
 - ✅ `my_unlink`, 删除文件 (没有实现软/硬链接, 最初的 inode 结构体中就没有保存 ref 信息)
 - ✅ `my_write`, 向文件写入内容
 - ✅ `my_cat`, 打印文件内容
@@ -114,6 +116,7 @@ $ ./build/my_touch 0 4096 "/hello.txt"
 $ ./build/my_ls 0 4096 "/"
 $ ./build/my_write 0 4096 "/hello.txt" 0 "Hello World"
 $ ./build/my_cat 0 4096 "/hello.txt"
+$ ./build/my_cp 0 4096 "/hello.txt" "/new_hello.txt"
 ```
 
 
