@@ -590,7 +590,7 @@ RC fs_cp(filesystem *fs, const char *src_path, const char *dst_path) {
         fprintf(stderr, "fs_cp error: wrong args...\n");
         return ErrArg;
     }
-    
+
     path src_p;
     uint32_t size = sizeof(struct s_path);
     memset(&src_p, 0, size);
@@ -650,10 +650,11 @@ RC fs_cp(filesystem *fs, const char *src_path, const char *dst_path) {
         create_new_func = fs_mkdir;
     }
 
-    if (create_new_func(fs, dst_path) != OK) {
-        fprintf(stderr, "fs_cp error: failed to create a new directory [%s]\n",
-                dst_path);
-        return ErrNotFound;
+    RC rc = create_new_func(fs, dst_path);
+    if (rc != OK) {
+        fprintf(stderr, "fs_cp error: failed to create destination [%s], rc=%d\n",
+                dst_path, rc);
+        return rc;
     }
 
     //
@@ -677,7 +678,7 @@ RC fs_cp(filesystem *fs, const char *src_path, const char *dst_path) {
     if ((dst_inode_num = path_lookup(fs, ino, &dst_p)) == 0) {
         fprintf(stderr, "fs_cp error: can not find new created file [%s]\n",
                 dst_path);
-        return ErrDirentExists;
+        return ErrNotFound;
     }
 
     // Copy inode metadata
@@ -712,8 +713,8 @@ RC fs_cp(filesystem *fs, const char *src_path, const char *dst_path) {
 
         if (dwrite(fs->dd, block_buf, dst_block_number) != OK) {
             fprintf(stderr, "fs_cp error: failed to write block [%d]\n",
-                    block_number);
-            return ErrDread;
+                    dst_block_number);
+            return ErrDwrite;
         }
     }
 
