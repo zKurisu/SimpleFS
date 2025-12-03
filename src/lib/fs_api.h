@@ -33,6 +33,11 @@ RC fs_touch(filesystem *fs, const char *path_str);
 RC fs_unlink(filesystem *fs, const char *path_str);
 
 /*
+ * Like shell command 'cp', cp file content to create a new file
+ * */
+RC fs_cp(filesystem *fs, const char *src_path, const char *dst_path);
+
+/*
  * Like shell command 'mkdir', create a directory, could recursively create
  * */
 RC fs_mkdir(filesystem *fs, const char *path_str);

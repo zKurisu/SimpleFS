@@ -583,3 +583,144 @@ RC fs_stat(filesystem *fs, const char *path_str, f_stat *st) {
 
     return OK;
 }
+
+RC fs_cp(filesystem *fs, const char *src_path, const char *dst_path) {
+    if (!fs || !src_path || !dst_path) {
+        fprintf(stderr, "fs_cp error: wrong args...\n");
+        return ErrArg;
+    }
+    
+    path src_p;
+    uint32_t size = sizeof(struct s_path);
+    memset(&src_p, 0, size);
+
+    if (path_parse(src_path, &src_p) != OK) {
+        fprintf(stderr, "fs_cp error: failed to parse src_path [%s] to path structure...\n",
+                src_path);
+        return ErrName;
+    }
+
+    path dst_p;
+    memset(&dst_p, 0, size);
+
+    if (path_parse(dst_path, &dst_p) != OK) {
+        fprintf(stderr, "fs_cp error: failed to parse dst_path [%s] to path structure...\n",
+                dst_path);
+        return ErrName;
+    }
+
+    //
+    // Handle src file
+    //
+    // Get src inode number and dst inode number
+    inode ino, src_ino, dst_ino;
+    uint32_t inode_num, src_inode_num, dst_inode_num;
+    if (src_p.is_absolute) {
+        inode_num = 1; // Hard encode, root dir inode num
+    } else { // relative path
+        pthread_rwlock_rdlock(&g_cwd.rwlock);
+        inode_num = g_cwd.cwd_inode_num;
+        pthread_rwlock_unlock(&g_cwd.rwlock);
+    }
+
+    if (ino_read(fs, inode_num, &ino) != OK) {
+        fprintf(stderr, "fs_cp error: failed to read base inode [%d]\n",
+                inode_num);
+        return ErrInode;
+    }
+
+    // src file should exist
+    if ((src_inode_num = path_lookup(fs, ino, &src_p)) == 0) {
+        fprintf(stderr, "fs_cp error: source file does not exists [%s]\n",
+                src_path);
+        return ErrNotFound;
+    }
+    if (ino_read(fs, src_inode_num, &src_ino) != OK) {
+        fprintf(stderr, "fs_cp error: failed to read src inode [%d]\n",
+                src_inode_num);
+        return ErrInode;
+    }
+
+    // if src is file, using touch, else if src is directory, using mkdir
+    RC (*create_new_func)(filesystem*,const char*);
+    if (src_ino.file_type == FTypeFile) {
+        create_new_func = fs_touch;
+    } else if (src_ino.file_type == FTypeDirectory) {
+        create_new_func = fs_mkdir;
+    }
+
+    if (create_new_func(fs, dst_path) != OK) {
+        fprintf(stderr, "fs_cp error: failed to create a new directory [%s]\n",
+                dst_path);
+        return ErrNotFound;
+    }
+
+    //
+    // Handle dst file
+    //
+    if (dst_p.is_absolute) {
+        inode_num = 1; // Hard encode, root dir inode num
+    } else { // relative path
+        pthread_rwlock_rdlock(&g_cwd.rwlock);
+        inode_num = g_cwd.cwd_inode_num;
+        pthread_rwlock_unlock(&g_cwd.rwlock);
+    }
+
+    if (ino_read(fs, inode_num, &ino) != OK) {
+        fprintf(stderr, "fs_cp error: failed to read base inode [%d]\n",
+                inode_num);
+        return ErrInode;
+    }
+
+    // dst file now should exist
+    if ((dst_inode_num = path_lookup(fs, ino, &dst_p)) == 0) {
+        fprintf(stderr, "fs_cp error: can not find new created file [%s]\n",
+                dst_path);
+        return ErrDirentExists;
+    }
+
+    // Copy inode metadata
+    if (ino_read(fs, dst_inode_num, &dst_ino) != OK) {
+        fprintf(stderr, "fs_cp error: failed to read dst inode [%d]\n",
+                dst_inode_num);
+        return ErrInode;
+    }
+    dst_ino.file_size = src_ino.file_size; // file_type, inode_number and single_indirect pointer is set before
+
+    // Copy block content
+    uint32_t max_block_offset = ino_get_max_block_offset(fs);
+    uint32_t block_number, dst_block_number;
+    uint32_t block_size = fs->dd->block_size;
+    uint8_t block_buf[block_size];
+    for (uint32_t i=0; i<max_block_offset; i++) {
+        if ((block_number = ino_get_block_at(fs, &src_ino, i)) == 0)
+            continue;
+
+        if (dread(fs->dd, block_buf, block_number) != OK) {
+            fprintf(stderr, "fs_cp error: failed to read block [%d]\n",
+                    block_number);
+            return ErrDread;
+        }
+
+        if ((dst_block_number = ino_get_block_at(fs, &dst_ino, i)) == 0) {
+            if ((dst_block_number = ino_alloc_block_at(fs, &dst_ino, i)) == 0) {
+                fprintf(stderr, "fs_cp error: failed to alloc new block\n");
+                return ErrInternal;
+            }
+        }
+
+        if (dwrite(fs->dd, block_buf, dst_block_number) != OK) {
+            fprintf(stderr, "fs_cp error: failed to write block [%d]\n",
+                    block_number);
+            return ErrDread;
+        }
+    }
+
+    if (ino_write(fs, dst_inode_num, &dst_ino) != OK) {
+        fprintf(stderr, "fs_cp error: failed to write inode back to disk [%d]\n",
+                dst_inode_num);
+        return ErrInode;
+    }
+
+    return OK;
+}
