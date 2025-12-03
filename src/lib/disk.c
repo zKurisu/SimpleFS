@@ -71,7 +71,6 @@ RC ddetach(disk *dd) {
     }
 
     close(dd->fd);
-    free(dd);
 
     return OK;
 }
