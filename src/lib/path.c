@@ -60,7 +60,8 @@ RC path_parse(const char *path_str, path *p) {
                 p->count--;
         } else {
             if (strlen(token) >= MAX_FILENAME_LEN) {
-                fprintf(stderr, "path_parse error: component over max filename len...\n");
+                fprintf(stderr, "path_parse error: component over max filename len [%d-%d]...\n",
+                        (int)strlen(token), MAX_FILENAME_LEN);
                 free(copy);
                 return ErrArg;
             }
@@ -176,8 +177,8 @@ uint32_t path_lookup(filesystem *fs, inode ino, const path *p) {
                 return 0;
             }
         } else { // Can not find entry
-            fprintf(stderr, "path_lookup error: can not find [%s] under inode [%d]\n",
-                    p->components[i], ino.inode_number);
+            // fprintf(stderr, "path_lookup error: can not find [%s] under inode [%d]\n",
+            //         p->components[i], ino.inode_number);
             return 0;
         }
     }

@@ -208,8 +208,8 @@ uint32_t ino_alloc_block_at(filesystem *fs, inode *ino, uint32_t offset) {
 
     uint32_t block_number = ino_get_block_at(fs, ino, offset);
     if (block_number != 0) {
-        fprintf(stderr, "ino_alloc_block error: offset at [%d] is already allocated...\n",
-                (int)offset);
+        // fprintf(stderr, "ino_alloc_block error: inode [%d] offset at [%d] is already allocated...\n",
+        //         ino->inode_number, (int)offset);
         return 0;
     }
 
