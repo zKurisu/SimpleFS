@@ -101,6 +101,22 @@
 - ✅ `my_stat`, 查看文件/目录元信息
 - `my_stress`, 多线程下的压力测试
 
+# Usage
+```sh
+$ git clone https://github.com/zKurisu/SimpleFS
+$ cd SimpleFS
+$ make build
+$ ./build/my_init 0 100 4096 # disk id: 0, block num: 100, block size: 4096
+$ ./build/my_format 0 4096 # disk id: 0, block size: 4096
+$ ./build/my_diskinfo 0 4096
+$ ./build/my_fsinfo 0 4096
+$ ./build/my_touch 0 4096 "/hello.txt"
+$ ./build/my_ls 0 4096 "/"
+$ ./build/my_write 0 4096 "/hello.txt" 0 "Hello World"
+$ ./build/my_cat 0 4096 "/hello.txt"
+```
+
+
 # Task1
 - 目标: 完成用户态环境下的磁盘模拟功能, 提供磁盘基本信息查询与格式化功能。
 - 实现约束：利用一个大文件来模拟磁盘块设备，基于固定分片大小实现文件系统的超级块区、inode节点区、数据分片区的管理，具备磁盘格式化、文件系统查询（如：fdisk k - l）功能，支持文件的inode节点和对应数据分片的分配、回收。
