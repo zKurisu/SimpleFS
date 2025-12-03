@@ -114,7 +114,7 @@ uint32_t bl_alloc(filesystem *fs) {
 
 RC bl_free(filesystem *fs, uint32_t block_number) {
     if (!fs || block_number <= 0 || block_number > fs->blocks) {
-        fprintf(stderr, "bl_free error: wrong args...\n");
+        fprintf(stderr, "bl_free error: wrong args, block_number [%d]...\n", block_number);
         return 0;
     }
 

@@ -169,6 +169,18 @@ uint32_t file_read(file_handle *fh, uint8_t *buf, uint32_t size) {
         return 0;
     }
 
+    if (fh->cache_valid == 0) {
+        pthread_rwlock_wrlock(&fh->rwlock);
+        if (ino_read(fh->fs, fh->inode_number, &fh->cached_inode) != OK) {
+            fprintf(stderr, "file_read error: could not read inode %d...\n",
+                    fh->inode_number);
+            pthread_rwlock_unlock(&fh->rwlock);
+            return 0;
+        }
+        fh->cache_valid = 1;
+        pthread_rwlock_unlock(&fh->rwlock);
+    }
+
     if (fh->offset >= fh->cached_inode.file_size) {
         return 0;  // EOF
     }
@@ -176,17 +188,6 @@ uint32_t file_read(file_handle *fh, uint8_t *buf, uint32_t size) {
     uint32_t remaining = fh->cached_inode.file_size - fh->offset;
     if (size > remaining) {
         size = remaining;
-    }
-
-    if (fh->cache_valid == 0) {
-        pthread_rwlock_wrlock(&fh->rwlock);
-        if (ino_read(fh->fs, fh->inode_number, &fh->cached_inode) != OK) {
-            fprintf(stderr, "file_read error: could not read inode %d...\n",
-                    fh->inode_number);
-            return 0;
-        }
-        fh->cache_valid = 1;
-        pthread_rwlock_unlock(&fh->rwlock);
     }
 
     pthread_rwlock_rdlock(&fh->rwlock);
@@ -274,6 +275,8 @@ uint32_t file_write(file_handle *fh, uint8_t *buf, uint32_t size) {
 
     uint32_t bytes_write = 0;
     uint32_t cur_block_idx = start_block_idx;
+    int inode_modified = 0;  // Track if inode needs to be written back
+
     while (bytes_write < size) {
         uint32_t physical_block = ino_get_block_at(fh->fs, &fh->cached_inode, cur_block_idx);
 
@@ -281,7 +284,8 @@ uint32_t file_write(file_handle *fh, uint8_t *buf, uint32_t size) {
             physical_block = ino_alloc_block_at(fh->fs, &fh->cached_inode, cur_block_idx);
             if (bl_clean(fh->fs, physical_block) != OK) {
                 fprintf(stderr, "file_write error: failed to init a block\n");
-                return ErrDwrite;
+                pthread_rwlock_unlock(&fh->rwlock);
+                return bytes_write;
             }
 
             if (physical_block == 0) {
@@ -289,6 +293,7 @@ uint32_t file_write(file_handle *fh, uint8_t *buf, uint32_t size) {
                 break;
             }
             memset(block_buf, 0, block_size);
+            inode_modified = 1;  // Block allocation modifies inode
         } else {
             if (block_offset != 0 || size - bytes_write < block_size) {
                 if (dread(fh->fs->dd, block_buf, physical_block) != OK) {
@@ -319,13 +324,17 @@ uint32_t file_write(file_handle *fh, uint8_t *buf, uint32_t size) {
     fh->offset += bytes_write;
     if (fh->offset > fh->cached_inode.file_size) {
         fh->cached_inode.file_size = fh->offset;
-        fh->cache_valid = 1;
+        inode_modified = 1;  // File size change modifies inode
+    }
 
+    // Write back inode if modified (either by block allocation or size change)
+    if (inode_modified && bytes_write > 0) {
+        fh->cache_valid = 1;
         ino_write(fh->fs, fh->inode_number, &fh->cached_inode);
     }
 
     pthread_rwlock_unlock(&fh->rwlock);
-    return bytes_write; // TMP RETURN
+    return bytes_write;
 }
 
 RC file_seek(file_handle *fh, uint32_t offset, uint8_t whence) {
