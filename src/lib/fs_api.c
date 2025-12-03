@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 RC fs_touch(filesystem *fs, const char *path_str) {
     if (!fs || !path_str) {
@@ -515,8 +516,11 @@ RC fs_cat(filesystem *fs, const char *path_str) {
             bytes_read);
         return ErrInternal;
     }
-    buf[file_size] = '\0';
-    printf("%s\n", buf);
+    
+    write(STDOUT_FILENO, buf, bytes_read);
+    if (bytes_read > 0 && buf[bytes_read-1] != '\n') {
+        write(STDOUT_FILENO, "\n", 1);
+    }
 
     return OK;
 }

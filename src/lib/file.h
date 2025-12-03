@@ -11,7 +11,6 @@
 
 #include "inode.h"
 #include "fs.h"
-#include "path.h"
 
 #include <stdint.h>
 #include <pthread.h>
