@@ -35,6 +35,19 @@ bitmap *bm_create(uint32_t size) {
     return bm;
 }
 
+void bm_destroy(bitmap *bm) {
+    if (!bm) {
+        return;
+    }
+
+    if (bm->bytes) {
+        free(bm->bytes);
+        bm->bytes = NULL;
+    }
+
+    free(bm);
+}
+
 uint8_t bm_getbit(bitmap *bm, uint32_t idx) {
     uint8_t ret;
     uint32_t byte_pos, bit_pos;

@@ -21,6 +21,7 @@ typedef struct s_bitmap bitmap;
 
 // Return -1 for error condition, not RC this time
 bitmap *bm_create(uint32_t size); // create a bitmap, size is byte_len
+void bm_destroy(bitmap *bm); // destroy a bitmap and free all memory
 uint8_t bm_getbit(bitmap *bm, uint32_t idx);
 uint8_t bm_setbit(bitmap *bm, uint32_t idx);
 uint8_t bm_unsetbit(bitmap *bm, uint32_t idx);

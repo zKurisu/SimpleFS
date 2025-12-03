@@ -99,12 +99,12 @@ RC fs_format(disk *dd) {
     ret = dwrites(dd, block_bitmap->bytes, start, end);
     if (ret != OK) {
         free(super_data);
-        free(block_bitmap);
+        bm_destroy(block_bitmap);
         fprintf(stderr, "fs_format error: Failed to init block_bitmap...\n");
         return ret;
     }
 
-    free(block_bitmap);
+    bm_destroy(block_bitmap);
     // Init inode table blocks
     uint8_t *block_buf = (uint8_t *)malloc(dd->block_size);
     if (!block_buf) {
@@ -189,7 +189,7 @@ RC fs_mount(disk *dd, filesystem *fs) {
     ret = dreads(dd, inode_bitmap->bytes, start, end);
     if (ret != OK) {
         free(super_data);
-        free(inode_bitmap);
+        bm_destroy(inode_bitmap);
         fprintf(stderr, "fs_mount error, failed to read inode bitmap info from disk...\n");
         return ret;
     }
@@ -206,8 +206,8 @@ RC fs_mount(disk *dd, filesystem *fs) {
     ret = dreads(dd, block_bitmap->bytes, start, end);
     if (ret != OK) {
         free(super_data);
-        free(inode_bitmap);
-        free(block_bitmap);
+        bm_destroy(inode_bitmap);
+        bm_destroy(block_bitmap);
         fprintf(stderr, "fs_mount error, failed to read inode bitmap info from disk...\n");
         return ret;
     }
@@ -222,6 +222,7 @@ RC fs_mount(disk *dd, filesystem *fs) {
 RC fs_unmount(filesystem *fs) {
     if (!fs) {
         fprintf(stderr, "fs_unmount error, non null pointer needed...\n");
+        return ErrArg;
     }
 
     RC ret = OK;
@@ -243,19 +244,14 @@ RC fs_unmount(filesystem *fs) {
         return ret;
     }
 
+    // Use bm_destroy() to properly free bitmaps
     if (fs->inode_bitmap) {
-        if (fs->inode_bitmap->bytes) {
-            free(fs->inode_bitmap->bytes);
-        }
-        free(fs->inode_bitmap);
+        bm_destroy(fs->inode_bitmap);
         fs->inode_bitmap = NULL;
     }
 
     if (fs->block_bitmap) {
-        if (fs->block_bitmap->bytes) {
-            free(fs->block_bitmap->bytes);
-        }
-        free(fs->block_bitmap);
+        bm_destroy(fs->block_bitmap);
         fs->block_bitmap = NULL;
     }
 
