@@ -57,7 +57,8 @@ RC fs_format(disk *dd) {
 
     super_data->datablock_start = super_data->inode_table_start 
         + super_data->inodeblocks;
-    super_data->datablock_bl_count = super_data->blocks - super_data->inodeblocks;
+    super_data->datablock_bl_count = super_data->blocks - super_data->inodeblocks - 1 -
+        super_data->inode_bitmap_bl_count - super_data->block_bitmap_bl_count;
 
     super_data->free_blocks = super_data->blocks - super_data->datablock_start + 1;
     super_data->free_inodes = super_data->inodes;
