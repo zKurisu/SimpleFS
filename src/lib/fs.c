@@ -215,6 +215,15 @@ RC fs_mount(disk *dd, filesystem *fs) {
     fs->inode_bitmap = inode_bitmap;
     fs->block_bitmap = block_bitmap;
 
+    // Initialize directory lock
+    if (pthread_mutex_init(&fs->dir_lock, NULL) != 0) {
+        free(super_data);
+        bm_destroy(inode_bitmap);
+        bm_destroy(block_bitmap);
+        fprintf(stderr, "fs_mount error: failed to initialize directory lock\n");
+        return ErrInternal;
+    }
+
     free(super_data);
     return ret;
 }
@@ -254,6 +263,9 @@ RC fs_unmount(filesystem *fs) {
         bm_destroy(fs->block_bitmap);
         fs->block_bitmap = NULL;
     }
+
+    // Destroy directory lock
+    pthread_mutex_destroy(&fs->dir_lock);
 
     return ret;
 }

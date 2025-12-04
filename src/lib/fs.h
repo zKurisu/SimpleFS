@@ -13,6 +13,7 @@
 #include "bitmap.h"
 
 #include <stdint.h>
+#include <pthread.h>
 
 #define Magic1 (0x04)
 #define Magic2 (0x17)
@@ -36,6 +37,9 @@ struct s_filesystem {
     // Bitmap objs
     bitmap *inode_bitmap;          // inode alloc
     bitmap *block_bitmap;          // block alloc
+
+    // Thread synchronization
+    pthread_mutex_t dir_lock;      // Protects directory operations (dir_add, dir_remove, dir_lookup)
 };
 typedef struct s_filesystem filesystem;
 

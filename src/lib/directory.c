@@ -107,8 +107,12 @@ RC dir_add(filesystem *fs, inode *dir_ino, const uint8_t *name, uint32_t inode_n
         return ErrArg;
     }
 
+    // Lock directory operations to prevent race conditions
+    pthread_mutex_lock(&fs->dir_lock);
+
     if (dir_lookup(fs, dir_ino, name) != 0) {// Check whether this name already added
         fprintf(stderr, "dir_add error: entry '%s' already exists\n", name);
+        pthread_mutex_unlock(&fs->dir_lock);
         return ErrDirentExists;
     }
 
@@ -125,6 +129,7 @@ RC dir_add(filesystem *fs, inode *dir_ino, const uint8_t *name, uint32_t inode_n
             if ((block_number = ino_alloc_block_at(fs, dir_ino, n)) != 0) { // Suc to allocate
                 if (bl_clean(fs, block_number) != OK) {
                     fprintf(stderr, "dir_add error: failed to clean block\n");
+                    pthread_mutex_unlock(&fs->dir_lock);
                     return ErrDwrite;
                 }
                 break;
@@ -144,6 +149,7 @@ RC dir_add(filesystem *fs, inode *dir_ino, const uint8_t *name, uint32_t inode_n
                 if (dread(fs->dd, block_buf, block_number) != OK) {
                     fprintf(stderr, "dir_add error, failed to dread from block_number: %d\n",
                             (int)block_number);
+                    pthread_mutex_unlock(&fs->dir_lock);
                     return ErrDread;
                 }
                 dirent_list = (dirent*)block_buf;
@@ -160,19 +166,22 @@ RC dir_add(filesystem *fs, inode *dir_ino, const uint8_t *name, uint32_t inode_n
     if (dread(fs->dd, block_buf, block_number) != OK) {
         fprintf(stderr, "dir_add error, failed to dread from block_number: %d\n",
                 (int)block_number);
+        pthread_mutex_unlock(&fs->dir_lock);
         return ErrDread;
     }
     dirent new_dirent = {.inode_num = inode_num};
     memcpy(new_dirent.name, name, strlen((char*)name));
-    
+
     memcpy(block_buf+dir_store_pos, &new_dirent, dirent_size);
     if (dwrite(fs->dd, block_buf, block_number) != OK) {
         fprintf(stderr, "dir_add error, failed to dwrite from block_number: %d\n",
                 (int)block_number);
+        pthread_mutex_unlock(&fs->dir_lock);
         return ErrDwrite;
     }
     dir_ino->file_size += dirent_size;
-    
+
+    pthread_mutex_unlock(&fs->dir_lock);
     return OK;
 }
 
@@ -187,10 +196,14 @@ RC dir_remove(filesystem *fs, inode *dir_ino, const uint8_t *name) {
         return ErrArg;
     }
 
+    // Lock directory operations to prevent race conditions
+    pthread_mutex_lock(&fs->dir_lock);
+
     uint32_t inode_num;
     // 查找条目
     if ((inode_num = dir_lookup(fs, dir_ino, name)) == 0) {
         fprintf(stderr, "dir_remove error: entry '%s' not found\n", name);
+        pthread_mutex_unlock(&fs->dir_lock);
         return ErrNotFound;
     }
 
@@ -212,6 +225,7 @@ RC dir_remove(filesystem *fs, inode *dir_ino, const uint8_t *name) {
         // 读取块
         if (dread(fs->dd, block_buf, block_number) != OK) {
             fprintf(stderr, "dir_remove error: failed to read block %u\n", block_number);
+            pthread_mutex_unlock(&fs->dir_lock);
             return ErrDread;
         }
 
@@ -232,6 +246,7 @@ RC dir_remove(filesystem *fs, inode *dir_ino, const uint8_t *name) {
                 // 写回磁盘
                 if (dwrite(fs->dd, block_buf, block_number) != OK) {
                     fprintf(stderr, "dir_remove error: failed to write block %u\n", block_number);
+                    pthread_mutex_unlock(&fs->dir_lock);
                     return ErrDwrite;
                 }
 
@@ -244,6 +259,7 @@ RC dir_remove(filesystem *fs, inode *dir_ino, const uint8_t *name) {
                 // 这里我们保持 file_size 不变，允许空洞
                 // dir_ino->file_size -= dirent_size;
 
+                pthread_mutex_unlock(&fs->dir_lock);
                 return OK;
             }
         }
@@ -251,6 +267,7 @@ RC dir_remove(filesystem *fs, inode *dir_ino, const uint8_t *name) {
 
     // 理论上不应该到这里（dir_lookup 已经确认存在）
     fprintf(stderr, "dir_remove error: inconsistent state\n");
+    pthread_mutex_unlock(&fs->dir_lock);
     return ErrInternal;
 }
 
