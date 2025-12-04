@@ -1,0 +1,922 @@
+/*
+ * stress.c - Multi-threaded stress testing for filesystem
+ *
+ * This program performs comprehensive stress testing including:
+ * - Concurrent file/directory creation and deletion
+ * - Random read/write operations
+ * - File copying operations
+ * - Mixed workloads across multiple threads
+ * - Error detection and reporting
+ *
+ * Usage:
+ *   ./build/my_stress <disk_id> <block_size> <thread_count> <iterations>
+ *
+ * Example:
+ *   ./build/my_stress 1 4096 8 100
+ *
+ * Copyright (C) Jie
+ * 2025-12-03
+ */
+
+#include "disk.h"
+#include "fs.h"
+#include "fs_api.h"
+#include "file.h"
+#include "error.h"
+#include "path.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdatomic.h>
+#include <stdarg.h>
+
+// ============================================
+// Configuration
+// ============================================
+#define MAX_CONTENT_SIZE 4096
+#define TEST_DIR_PREFIX "/stress_test_"
+#define PROGRESS_INTERVAL 100
+#define MAX_ERROR_LOGS 10  // Keep last N error messages
+
+// ============================================
+// Global state
+// ============================================
+typedef struct {
+    char message[256];
+    int thread_id;
+} error_log_entry;
+
+typedef struct {
+    atomic_uint total_ops;
+    atomic_uint successful_ops;
+    atomic_uint failed_ops;
+
+    atomic_uint files_created;
+    atomic_uint files_deleted;
+    atomic_uint dirs_created;
+    atomic_uint dirs_deleted;
+    atomic_uint writes;
+    atomic_uint reads;
+    atomic_uint copies;
+
+    // Failed operation counters
+    atomic_uint failed_lifecycle;
+    atomic_uint failed_rw;
+    atomic_uint failed_dir;
+    atomic_uint failed_copy;
+    atomic_uint failed_random;
+    atomic_uint failed_concurrent;
+
+    // Detailed failure tracking
+    atomic_uint failed_touch;
+    atomic_uint failed_unlink;
+    atomic_uint failed_mkdir;
+    atomic_uint failed_rmdir;
+    atomic_uint failed_cp;
+    atomic_uint failed_open;
+    atomic_uint failed_read;
+    atomic_uint failed_write;
+    atomic_uint failed_seek;
+
+    // Error log ring buffer
+    error_log_entry error_logs[MAX_ERROR_LOGS];
+    atomic_uint error_log_index;
+
+    atomic_uint errors[10];  // Track different error types
+} stress_stats;
+
+typedef struct {
+    filesystem *fs;
+    int thread_id;
+    int iterations;
+    stress_stats *stats;
+    unsigned int seed;  // Per-thread random seed
+} thread_context;
+
+stress_stats g_stats;
+pthread_mutex_t g_print_lock = PTHREAD_MUTEX_INITIALIZER;
+
+// ============================================
+// Utility Functions
+// ============================================
+
+// Thread-safe printf
+void ts_printf(const char *format, ...) {
+    pthread_mutex_lock(&g_print_lock);
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+    fflush(stdout);
+    pthread_mutex_unlock(&g_print_lock);
+}
+
+// Log error for summary
+void log_error(stress_stats *stats, int thread_id, const char *format, ...) {
+    char message[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(message, sizeof(message), format, args);
+    va_end(args);
+
+    // Also print to console
+    ts_printf("[Thread %d] ERROR: %s\n", thread_id, message);
+
+    // Store in ring buffer
+    uint32_t index = atomic_fetch_add(&stats->error_log_index, 1);
+    index = index % MAX_ERROR_LOGS;
+
+    pthread_mutex_lock(&g_print_lock);
+    strncpy(stats->error_logs[index].message, message, sizeof(stats->error_logs[index].message) - 1);
+    stats->error_logs[index].message[sizeof(stats->error_logs[index].message) - 1] = '\0';
+    stats->error_logs[index].thread_id = thread_id;
+    pthread_mutex_unlock(&g_print_lock);
+}
+
+// Generate random string
+void random_string(char *buf, size_t len, unsigned int *seed) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+    for (size_t i = 0; i < len - 1; i++) {
+        buf[i] = charset[rand_r(seed) % (sizeof(charset) - 1)];
+    }
+    buf[len - 1] = '\0';
+}
+
+// Generate test path
+void generate_test_path(char *path, int thread_id, int iteration,
+                       const char *suffix, unsigned int *seed) {
+    char random_part[16];
+    random_string(random_part, sizeof(random_part), seed);
+    snprintf(path, MAX_PATH_LEN, "%s%d_%d_%s%s",
+             TEST_DIR_PREFIX, thread_id, iteration, random_part, suffix);
+}
+
+// ============================================
+// Test Operations
+// ============================================
+
+// Test 1: Create and delete files
+int test_file_lifecycle(thread_context *ctx) {
+    char path[MAX_PATH_LEN];
+    generate_test_path(path, ctx->thread_id,
+                      rand_r(&ctx->seed) % ctx->iterations, ".txt", &ctx->seed);
+
+    ts_printf("[Thread %d] TEST_LIFECYCLE: Creating file %s\n", ctx->thread_id, path);
+
+    // Create file
+    if (fs_touch(ctx->fs, path) != OK) {
+        log_error(ctx->stats, ctx->thread_id, "fs_touch failed: %s", path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_lifecycle, 1);
+        atomic_fetch_add(&ctx->stats->failed_touch, 1);
+        return -1;
+    }
+    atomic_fetch_add(&ctx->stats->files_created, 1);
+
+    // Verify existence
+    if (fs_exists(ctx->fs, path) != OK) {
+        log_error(ctx->stats, ctx->thread_id, "File should exist but doesn't: %s", path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_lifecycle, 1);
+        return -1;
+    }
+
+    ts_printf("[Thread %d] TEST_LIFECYCLE: Deleting file %s\n", ctx->thread_id, path);
+
+    // Delete file
+    if (fs_unlink(ctx->fs, path) != OK) {
+        log_error(ctx->stats, ctx->thread_id, "fs_unlink failed: %s", path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_lifecycle, 1);
+        atomic_fetch_add(&ctx->stats->failed_unlink, 1);
+        return -1;
+    }
+    atomic_fetch_add(&ctx->stats->files_deleted, 1);
+
+    // Verify deletion
+    if (fs_exists(ctx->fs, path) == OK) {
+        log_error(ctx->stats, ctx->thread_id, "File should not exist but does: %s", path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_lifecycle, 1);
+        return -1;
+    }
+
+    ts_printf("[Thread %d] TEST_LIFECYCLE: Success for %s\n", ctx->thread_id, path);
+    atomic_fetch_add(&ctx->stats->successful_ops, 1);
+    return 0;
+}
+
+// Test 2: Write and read file content
+int test_file_read_write(thread_context *ctx) {
+    char path[MAX_PATH_LEN];
+    generate_test_path(path, ctx->thread_id,
+                      rand_r(&ctx->seed) % ctx->iterations, "_rw.txt", &ctx->seed);
+
+    ts_printf("[Thread %d] TEST_RW: Creating file %s\n", ctx->thread_id, path);
+
+    // Create file
+    if (fs_touch(ctx->fs, path) != OK) {
+        ts_printf("[Thread %d] TEST_RW: Failed to create %s\n", ctx->thread_id, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+        return -1;
+    }
+
+    // Generate random content
+    uint32_t content_size = (rand_r(&ctx->seed) % MAX_CONTENT_SIZE) + 1;
+    uint8_t *write_buf = malloc(content_size);
+    if (!write_buf) {
+        ts_printf("[Thread %d] TEST_RW: Failed to allocate write buffer\n", ctx->thread_id);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+
+    for (uint32_t i = 0; i < content_size; i++) {
+        write_buf[i] = (uint8_t)(rand_r(&ctx->seed) % 256);
+    }
+
+    ts_printf("[Thread %d] TEST_RW: Writing %u bytes to %s\n", ctx->thread_id, content_size, path);
+
+    // Write content
+    file_handle *fh = file_open(ctx->fs, path, MY_O_WRONLY);
+    if (!fh) {
+        ts_printf("[Thread %d] TEST_RW: Failed to open for write %s\n", ctx->thread_id, path);
+        free(write_buf);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+
+    uint32_t written = file_write(fh, write_buf, content_size);
+    file_close(fh);
+
+    if (written != content_size) {
+        ts_printf("[Thread %d] ERROR: Write size mismatch (expected %u, got %u)\n",
+                 ctx->thread_id, content_size, written);
+        free(write_buf);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+    atomic_fetch_add(&ctx->stats->writes, 1);
+
+    ts_printf("[Thread %d] TEST_RW: Reading back from %s\n", ctx->thread_id, path);
+
+    // Read back content
+    fh = file_open(ctx->fs, path, MY_O_RDONLY);
+    if (!fh) {
+        ts_printf("[Thread %d] TEST_RW: Failed to open for read %s\n", ctx->thread_id, path);
+        free(write_buf);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+
+    uint8_t *read_buf = malloc(content_size);
+    if (!read_buf) {
+        ts_printf("[Thread %d] TEST_RW: Failed to allocate read buffer\n", ctx->thread_id);
+        file_close(fh);
+        free(write_buf);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+
+    uint32_t read_size = file_read(fh, read_buf, content_size);
+    file_close(fh);
+
+    if (read_size != content_size) {
+        ts_printf("[Thread %d] ERROR: Read size mismatch (expected %u, got %u)\n",
+                 ctx->thread_id, content_size, read_size);
+        free(write_buf);
+        free(read_buf);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+    atomic_fetch_add(&ctx->stats->reads, 1);
+
+    // Verify content
+    if (memcmp(write_buf, read_buf, content_size) != 0) {
+        ts_printf("[Thread %d] ERROR: Content mismatch in %s\n",
+                 ctx->thread_id, path);
+        free(write_buf);
+        free(read_buf);
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_rw, 1);
+    }
+
+    ts_printf("[Thread %d] TEST_RW: Cleaning up %s\n", ctx->thread_id, path);
+
+    free(write_buf);
+    free(read_buf);
+    fs_unlink(ctx->fs, path);
+
+    ts_printf("[Thread %d] TEST_RW: Success\n", ctx->thread_id);
+    atomic_fetch_add(&ctx->stats->successful_ops, 1);
+    return 0;
+}
+
+// Test 3: Directory operations
+int test_directory_operations(thread_context *ctx) {
+    char dir_path[MAX_PATH_LEN];
+    char file_path[MAX_PATH_LEN];
+
+    generate_test_path(dir_path, ctx->thread_id,
+                      rand_r(&ctx->seed) % ctx->iterations, "_dir", &ctx->seed);
+
+    ts_printf("[Thread %d] TEST_DIR: Creating directory %s\n", ctx->thread_id, dir_path);
+
+    // Create directory
+    if (fs_mkdir(ctx->fs, dir_path) != OK) {
+        ts_printf("[Thread %d] TEST_DIR: Failed to create directory %s\n", ctx->thread_id, dir_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_dir, 1);
+    }
+    atomic_fetch_add(&ctx->stats->dirs_created, 1);
+
+    // Create files inside directory (reduce to 2-3 files to avoid issues)
+    int file_count = (rand_r(&ctx->seed) % 2) + 2;
+    ts_printf("[Thread %d] TEST_DIR: Creating %d files in %s\n", ctx->thread_id, file_count, dir_path);
+
+    for (int i = 0; i < file_count; i++) {
+        snprintf(file_path, MAX_PATH_LEN, "%s/file_%d.txt", dir_path, i);
+        ts_printf("[Thread %d] TEST_DIR: Creating file %s\n", ctx->thread_id, file_path);
+
+        if (fs_touch(ctx->fs, file_path) != OK) {
+            ts_printf("[Thread %d] TEST_DIR: Failed to create file %s\n", ctx->thread_id, file_path);
+            // Don't try to cleanup, just fail
+            atomic_fetch_add(&ctx->stats->failed_ops, 1);
+            return -1;
+            atomic_fetch_add(&ctx->stats->failed_dir, 1);
+        }
+    }
+
+    // Small delay to ensure all operations complete
+    usleep(1000);
+
+    ts_printf("[Thread %d] TEST_DIR: Removing directory %s\n", ctx->thread_id, dir_path);
+
+    // Remove directory (should remove all contents)
+    if (fs_rmdir(ctx->fs, dir_path) != OK) {
+        ts_printf("[Thread %d] TEST_DIR: Failed to remove directory %s\n", ctx->thread_id, dir_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_dir, 1);
+    }
+    atomic_fetch_add(&ctx->stats->dirs_deleted, 1);
+
+    ts_printf("[Thread %d] TEST_DIR: Success\n", ctx->thread_id);
+    atomic_fetch_add(&ctx->stats->successful_ops, 1);
+    return 0;
+}
+
+// Test 4: File copy operations
+int test_file_copy(thread_context *ctx) {
+    char src_path[MAX_PATH_LEN];
+    char dst_path[MAX_PATH_LEN];
+
+    generate_test_path(src_path, ctx->thread_id,
+                      rand_r(&ctx->seed) % ctx->iterations, "_src.txt", &ctx->seed);
+    generate_test_path(dst_path, ctx->thread_id,
+                      rand_r(&ctx->seed) % ctx->iterations, "_dst.txt", &ctx->seed);
+
+    ts_printf("[Thread %d] TEST_COPY: Creating source file %s\n", ctx->thread_id, src_path);
+
+    // Create source file with content
+    if (fs_touch(ctx->fs, src_path) != OK) {
+        ts_printf("[Thread %d] TEST_COPY: Failed to create source %s\n", ctx->thread_id, src_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_copy, 1);
+        return -1;
+    }
+
+    // Write some content
+    file_handle *fh = file_open(ctx->fs, src_path, MY_O_WRONLY);
+    if (!fh) {
+        ts_printf("[Thread %d] TEST_COPY: Failed to open source for write %s\n", ctx->thread_id, src_path);
+        fs_unlink(ctx->fs, src_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_copy, 1);
+    }
+
+    char content[256];
+    snprintf(content, sizeof(content),
+             "Test content from thread %d iteration %d\n",
+             ctx->thread_id, rand_r(&ctx->seed));
+
+    file_write(fh, (uint8_t*)content, strlen(content));
+    file_close(fh);
+
+    ts_printf("[Thread %d] TEST_COPY: Copying %s -> %s\n", ctx->thread_id, src_path, dst_path);
+
+    // Copy file
+    if (fs_cp(ctx->fs, src_path, dst_path) != OK) {
+        ts_printf("[Thread %d] TEST_COPY: Failed to copy %s -> %s\n",
+                 ctx->thread_id, src_path, dst_path);
+        fs_unlink(ctx->fs, src_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_copy, 1);
+    }
+    atomic_fetch_add(&ctx->stats->copies, 1);
+
+    // Verify both files exist
+    if (fs_exists(ctx->fs, src_path) != OK ||
+        fs_exists(ctx->fs, dst_path) != OK) {
+        ts_printf("[Thread %d] ERROR: Copy operation failed - files don't exist\n", ctx->thread_id);
+        fs_unlink(ctx->fs, src_path);
+        fs_unlink(ctx->fs, dst_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_copy, 1);
+    }
+
+    // Verify sizes match
+    f_stat src_stat, dst_stat;
+    if (fs_stat(ctx->fs, src_path, &src_stat) != OK ||
+        fs_stat(ctx->fs, dst_path, &dst_stat) != OK) {
+        ts_printf("[Thread %d] TEST_COPY: Failed to stat files\n", ctx->thread_id);
+        fs_unlink(ctx->fs, src_path);
+        fs_unlink(ctx->fs, dst_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+        atomic_fetch_add(&ctx->stats->failed_copy, 1);
+    }
+
+    if (src_stat.size != dst_stat.size) {
+        log_error(ctx->stats, ctx->thread_id,
+                 "Copy size mismatch: src=%u dst=%u (file: %s)",
+                 src_stat.size, dst_stat.size, dst_path);
+        fs_unlink(ctx->fs, src_path);
+        fs_unlink(ctx->fs, dst_path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_copy, 1);
+        atomic_fetch_add(&ctx->stats->failed_cp, 1);
+        return -1;
+    }
+
+    ts_printf("[Thread %d] TEST_COPY: Cleaning up\n", ctx->thread_id);
+
+    // Cleanup
+    fs_unlink(ctx->fs, src_path);
+    fs_unlink(ctx->fs, dst_path);
+
+    ts_printf("[Thread %d] TEST_COPY: Success\n", ctx->thread_id);
+    atomic_fetch_add(&ctx->stats->successful_ops, 1);
+    return 0;
+}
+
+// Test 5: Random seek and partial read/write
+int test_random_access(thread_context *ctx) {
+        atomic_fetch_add(&ctx->stats->failed_random, 1);
+    char path[MAX_PATH_LEN];
+    generate_test_path(path, ctx->thread_id,
+                      rand_r(&ctx->seed) % ctx->iterations, "_random.txt", &ctx->seed);
+
+    // Create file and write initial content
+    if (fs_touch(ctx->fs, path) != OK) {
+        atomic_fetch_add(&ctx->stats->failed_random, 1);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+    }
+
+    file_handle *fh = file_open(ctx->fs, path, MY_O_RDWR);
+    if (!fh) {
+        fs_unlink(ctx->fs, path);
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        return -1;
+    }
+
+    // Write initial content
+    uint8_t initial_data[1024];
+            atomic_fetch_add(&ctx->stats->failed_random, 1);
+    for (int i = 0; i < 1024; i++) {
+        initial_data[i] = (uint8_t)(i % 256);
+    }
+    file_write(fh, initial_data, 1024);
+
+    // Perform random seeks and reads
+    for (int i = 0; i < 10; i++) {
+        uint32_t offset = rand_r(&ctx->seed) % 1024;
+            atomic_fetch_add(&ctx->stats->failed_random, 1);
+        uint32_t size = (rand_r(&ctx->seed) % 100) + 1;
+
+        if (file_seek(fh, offset, MY_SEEK_SET) != OK) {
+            file_close(fh);
+            fs_unlink(ctx->fs, path);
+            atomic_fetch_add(&ctx->stats->failed_ops, 1);
+            return -1;
+        }
+
+        uint8_t buf[100];
+        uint32_t read_size = file_read(fh, buf, size);
+
+        if (read_size == 0 && offset < 1024) {
+            ts_printf("[Thread %d] ERROR: Random read failed at offset %u\n",
+                     ctx->thread_id, offset);
+            file_close(fh);
+            fs_unlink(ctx->fs, path);
+            atomic_fetch_add(&ctx->stats->failed_ops, 1);
+            return -1;
+        }
+    }
+
+    file_close(fh);
+    fs_unlink(ctx->fs, path);
+
+    atomic_fetch_add(&ctx->stats->successful_ops, 1);
+    atomic_fetch_add(&ctx->stats->reads, 1);
+    return 0;
+}
+
+// Test 6: Concurrent access to same file
+int test_concurrent_access(thread_context *ctx) {
+    char shared_path[MAX_PATH_LEN];
+    snprintf(shared_path, MAX_PATH_LEN, "/shared_file_%d.txt",
+             rand_r(&ctx->seed) % 10);
+
+    // Try to create (ignore error if exists)
+    RC rc = fs_touch(ctx->fs, shared_path);
+    if (rc != OK && rc != ErrDirentExists) {
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_concurrent, 1);
+        return -1;
+    }
+
+    // Open and append data
+    file_handle *fh = file_open(ctx->fs, shared_path, MY_O_WRONLY | MY_O_APPEND);
+    if (!fh) {
+        atomic_fetch_add(&ctx->stats->failed_ops, 1);
+        atomic_fetch_add(&ctx->stats->failed_concurrent, 1);
+        return -1;
+    }
+
+    char data[128];
+    snprintf(data, sizeof(data), "[Thread %d] timestamp=%ld\n",
+             ctx->thread_id, time(NULL));
+
+    file_write(fh, (uint8_t*)data, strlen(data));
+    file_close(fh);
+
+    atomic_fetch_add(&ctx->stats->successful_ops, 1);
+    atomic_fetch_add(&ctx->stats->writes, 1);
+    return 0;
+}
+
+// ============================================
+// Thread Worker Function
+// ============================================
+void *stress_worker(void *arg) {
+    thread_context *ctx = (thread_context *)arg;
+
+    ts_printf("[Thread %d] Starting with %d iterations\n",
+             ctx->thread_id, ctx->iterations);
+
+    for (int i = 0; i < ctx->iterations; i++) {
+        // Mix different test types with weighted distribution
+        // Reduce concurrent access and directory operations
+        int test_type = rand_r(&ctx->seed) % 100;
+
+        int result = 0;
+        if (test_type < 25) {
+            // 25% - File lifecycle
+            result = test_file_lifecycle(ctx);
+        } else if (test_type < 50) {
+            // 25% - Read/write
+            result = test_file_read_write(ctx);
+        } else if (test_type < 65) {
+            // 15% - Directory operations
+            result = test_directory_operations(ctx);
+        } else if (test_type < 80) {
+            // 15% - File copy
+            result = test_file_copy(ctx);
+        } else if (test_type < 95) {
+            // 15% - Random access
+            result = test_random_access(ctx);
+        } else {
+            // 5% - Concurrent access (reduced from 16.6%)
+            result = test_concurrent_access(ctx);
+        }
+
+        atomic_fetch_add(&ctx->stats->total_ops, 1);
+
+        // Add small delay between operations to reduce contention
+        if (i % 5 == 0) {
+            usleep(100);
+        }
+
+        // Progress reporting
+        if ((i + 1) % PROGRESS_INTERVAL == 0) {
+            ts_printf("[Thread %d] Progress: %d/%d operations\n",
+                     ctx->thread_id, i + 1, ctx->iterations);
+        }
+    }
+
+    ts_printf("[Thread %d] Completed all iterations\n", ctx->thread_id);
+    return NULL;
+}
+
+// ============================================
+// Statistics and Reporting
+// ============================================
+
+// Cleanup test files
+void cleanup_test_files(filesystem *fs) {
+    ts_printf("\nCleaning up test files...\n");
+
+    int cleaned = 0;
+    // Remove shared files (silently)
+    for (int i = 0; i < 10; i++) {
+        char path[MAX_PATH_LEN];
+        snprintf(path, MAX_PATH_LEN, "/shared_file_%d.txt", i);
+
+        // Check if file exists before trying to delete
+        if (fs_exists(fs, path) == OK) {
+            if (fs_unlink(fs, path) == OK) {
+                cleaned++;
+            }
+        }
+    }
+
+    ts_printf("Cleaned up %d shared files\n", cleaned);
+}
+
+void print_statistics(stress_stats *stats, double elapsed_time) {
+    printf("\n");
+    printf("========================================\n");
+    printf("Stress Test Results\n");
+    printf("========================================\n");
+    printf("Total Operations:     %u\n", atomic_load(&stats->total_ops));
+    printf("Successful:           %u\n", atomic_load(&stats->successful_ops));
+    printf("Failed:               %u\n", atomic_load(&stats->failed_ops));
+    printf("\n");
+    printf("Operation Breakdown:\n");
+    printf("  Files Created:      %u\n", atomic_load(&stats->files_created));
+    printf("  Files Deleted:      %u\n", atomic_load(&stats->files_deleted));
+    printf("  Dirs Created:       %u\n", atomic_load(&stats->dirs_created));
+    printf("  Dirs Deleted:       %u\n", atomic_load(&stats->dirs_deleted));
+    printf("  Write Operations:   %u\n", atomic_load(&stats->writes));
+    printf("  Read Operations:    %u\n", atomic_load(&stats->reads));
+    printf("  Copy Operations:    %u\n", atomic_load(&stats->copies));
+    printf("\n");
+    printf("Performance:\n");
+    printf("  Elapsed Time:       %.2f seconds\n", elapsed_time);
+    printf("  Operations/sec:     %.2f\n",
+           atomic_load(&stats->total_ops) / elapsed_time);
+    printf("========================================\n");
+
+    if (atomic_load(&stats->failed_ops) > 0) {
+        printf("\nWARNING: %u operations failed!\n",
+               atomic_load(&stats->failed_ops));
+        printf("\nFailed Operation Details:\n");
+
+        uint32_t failed_lifecycle = atomic_load(&stats->failed_lifecycle);
+        uint32_t failed_rw = atomic_load(&stats->failed_rw);
+        uint32_t failed_dir = atomic_load(&stats->failed_dir);
+        uint32_t failed_copy = atomic_load(&stats->failed_copy);
+        uint32_t failed_random = atomic_load(&stats->failed_random);
+        uint32_t failed_concurrent = atomic_load(&stats->failed_concurrent);
+
+        if (failed_lifecycle > 0)
+            printf("  File Lifecycle:     %u failed\n", failed_lifecycle);
+        if (failed_rw > 0)
+            printf("  Read/Write:         %u failed\n", failed_rw);
+        if (failed_dir > 0)
+            printf("  Directory Ops:      %u failed\n", failed_dir);
+        if (failed_copy > 0)
+            printf("  Copy Operations:    %u failed\n", failed_copy);
+        if (failed_random > 0)
+            printf("  Random Access:      %u failed\n", failed_random);
+        if (failed_concurrent > 0)
+            printf("  Concurrent Access:  %u failed\n", failed_concurrent);
+
+        // Show specific operation failures
+        printf("\nSpecific API Failures:\n");
+        uint32_t failed_touch = atomic_load(&stats->failed_touch);
+        uint32_t failed_unlink = atomic_load(&stats->failed_unlink);
+        uint32_t failed_mkdir = atomic_load(&stats->failed_mkdir);
+        uint32_t failed_rmdir = atomic_load(&stats->failed_rmdir);
+        uint32_t failed_cp = atomic_load(&stats->failed_cp);
+        uint32_t failed_open = atomic_load(&stats->failed_open);
+        uint32_t failed_read = atomic_load(&stats->failed_read);
+        uint32_t failed_write = atomic_load(&stats->failed_write);
+        uint32_t failed_seek = atomic_load(&stats->failed_seek);
+
+        if (failed_touch > 0) printf("  fs_touch:           %u\n", failed_touch);
+        if (failed_unlink > 0) printf("  fs_unlink:          %u\n", failed_unlink);
+        if (failed_mkdir > 0) printf("  fs_mkdir:           %u\n", failed_mkdir);
+        if (failed_rmdir > 0) printf("  fs_rmdir:           %u\n", failed_rmdir);
+        if (failed_cp > 0) printf("  fs_cp:              %u\n", failed_cp);
+        if (failed_open > 0) printf("  file_open:          %u\n", failed_open);
+        if (failed_read > 0) printf("  file_read:          %u\n", failed_read);
+        if (failed_write > 0) printf("  file_write:         %u\n", failed_write);
+        if (failed_seek > 0) printf("  file_seek:          %u\n", failed_seek);
+
+        // Show recent error messages
+        uint32_t total_errors = atomic_load(&stats->error_log_index);
+        uint32_t errors_to_show = (total_errors < MAX_ERROR_LOGS) ? total_errors : MAX_ERROR_LOGS;
+
+        if (errors_to_show > 0) {
+            printf("\nRecent Error Messages (last %u):\n", errors_to_show);
+            for (uint32_t i = 0; i < errors_to_show; i++) {
+                uint32_t idx = (total_errors - errors_to_show + i) % MAX_ERROR_LOGS;
+                if (stats->error_logs[idx].message[0] != '\0') {
+                    printf("  [Thread %d] %s\n",
+                           stats->error_logs[idx].thread_id,
+                           stats->error_logs[idx].message);
+                }
+            }
+        }
+    } else {
+        printf("\nAll operations completed successfully!\n");
+    }
+}
+
+// ============================================
+// Main Function
+// ============================================
+int main(int argc, char *argv[]) {
+    if (argc != 5) {
+        fprintf(stderr, "Usage: %s <disk_id> <block_size> <thread_count> <iterations>\n", argv[0]);
+        fprintf(stderr, "\nExample:\n");
+        fprintf(stderr, "  %s 1 4096 8 100\n", argv[0]);
+        fprintf(stderr, "  This attaches to disk1.img with 4KB blocks,\n");
+        fprintf(stderr, "  runs 8 threads, each performing 100 operations\n");
+        return 1;
+    }
+
+    int32_t disk_id = atoi(argv[1]);
+    int32_t block_size = atoi(argv[2]);
+    int thread_count = atoi(argv[3]);
+    int iterations = atoi(argv[4]);
+
+    if (disk_id < 0 || disk_id >= MAX_DISKS) {
+        fprintf(stderr, "Error: Disk ID must be between 0 and %d\n", MAX_DISKS - 1);
+        return 1;
+    }
+
+    if (block_size < MIN_BLOCK_SIZE) {
+        fprintf(stderr, "Error: Block size must be at least %d\n", MIN_BLOCK_SIZE);
+        return 1;
+    }
+
+    if (thread_count <= 0 || thread_count > 256) {
+        fprintf(stderr, "Error: Thread count must be between 1 and 256\n");
+        return 1;
+    }
+
+    if (iterations <= 0) {
+        fprintf(stderr, "Error: Iterations must be positive\n");
+        return 1;
+    }
+
+    printf("========================================\n");
+    printf("Filesystem Stress Test\n");
+    printf("========================================\n");
+    printf("Disk ID:     %d\n", disk_id);
+    printf("Block Size:  %d bytes\n", block_size);
+    printf("Threads:     %d\n", thread_count);
+    printf("Iterations:  %d per thread\n", iterations);
+    printf("Total Ops:   ~%d\n", thread_count * iterations);
+    printf("========================================\n\n");
+
+    // Allocate and initialize disk
+    disk *dd = (disk*)malloc(sizeof(disk));
+    if (!dd) {
+        fprintf(stderr, "Error: Failed to allocate memory for disk\n");
+        return 1;
+    }
+    memset(dd, 0, sizeof(disk));
+
+    // Allocate and initialize filesystem
+    filesystem *fs = (filesystem*)malloc(sizeof(filesystem));
+    if (!fs) {
+        fprintf(stderr, "Error: Failed to allocate memory for filesystem\n");
+        free(dd);
+        return 1;
+    }
+    memset(fs, 0, sizeof(filesystem));
+
+    // Attach to disk
+    if (dattach(dd, block_size, disk_id) != OK) {
+        fprintf(stderr, "Error: Failed to attach to disk %d\n", disk_id);
+        free(dd);
+        free(fs);
+        return 1;
+    }
+
+    // Mount filesystem
+    if (fs_mount(dd, fs) != OK) {
+        fprintf(stderr, "Error: Failed to mount filesystem on disk %d\n", disk_id);
+        ddetach(dd);
+        free(dd);
+        free(fs);
+        return 1;
+    }
+
+    printf("Filesystem mounted successfully\n");
+    fs_show(fs);
+    printf("\n");
+
+    // Initialize global file table
+    file_table_init();
+
+    // Initialize statistics
+    memset(&g_stats, 0, sizeof(g_stats));
+
+    // Create threads
+    pthread_t *threads = malloc(sizeof(pthread_t) * thread_count);
+    thread_context *contexts = malloc(sizeof(thread_context) * thread_count);
+
+    if (!threads || !contexts) {
+        fprintf(stderr, "Error: Failed to allocate memory for threads\n");
+        fs_unmount(fs);
+        ddetach(dd);
+        free(dd);
+        free(fs);
+        return 1;
+    }
+
+    struct timespec start_time, end_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+    // Launch threads
+    for (int i = 0; i < thread_count; i++) {
+        contexts[i].fs = fs;
+        contexts[i].thread_id = i;
+        contexts[i].iterations = iterations;
+        contexts[i].stats = &g_stats;
+        contexts[i].seed = (unsigned int)(time(NULL) + i);
+
+        if (pthread_create(&threads[i], NULL, stress_worker, &contexts[i]) != 0) {
+            fprintf(stderr, "Error: Failed to create thread %d\n", i);
+            // Cleanup and exit
+            for (int j = 0; j < i; j++) {
+                pthread_join(threads[j], NULL);
+            }
+            free(threads);
+            free(contexts);
+            fs_unmount(fs);
+            ddetach(dd);
+            free(dd);
+            free(fs);
+            return 1;
+        }
+    }
+
+    // Wait for all threads
+    for (int i = 0; i < thread_count; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double elapsed = (end_time.tv_sec - start_time.tv_sec) +
+                    (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
+
+    // Print results
+    print_statistics(&g_stats, elapsed);
+
+    // Show file table status
+    printf("\nGlobal File Table:\n");
+    file_table_show();
+
+    // Cleanup test files
+    cleanup_test_files(fs);
+
+    // Cleanup
+    free(threads);
+    free(contexts);
+
+    // Unmount filesystem
+    if (fs_unmount(fs) != OK) {
+        fprintf(stderr, "Warning: Failed to unmount filesystem\n");
+    }
+
+    // Detach disk
+    if (ddetach(dd) != OK) {
+        fprintf(stderr, "Warning: Failed to detach disk\n");
+    }
+
+    free(dd);
+    free(fs);
+
+    printf("\nAll cleanup completed\n");
+
+    return (atomic_load(&g_stats.failed_ops) > 0) ? 1 : 0;
+}

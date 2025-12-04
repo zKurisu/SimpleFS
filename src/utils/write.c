@@ -32,9 +32,10 @@ int main(int argn, char *argv[]) {
         "  ./build/my_write 0 4096 \"/hello.txt\" 0 \"hello world\"\n"
         "  This will write content to file, offset -1 means append\n", argn);
     
-    int32_t disk_id, block_size, offset;
+    int32_t block_size, offset;
+    int32_t disk_id   = atoi(argv[1]);
     if (argn != 6 || // file name, block number, block size, file path, offset, content
-        (disk_id   = atoi(argv[1]))  == 0 ||
+        disk_id > 9 || disk_id < 0 ||
         (block_size = atoi(argv[2])) == 0||
         (offset = atoi(argv[4]))     == 0) { // Error
         fprintf(stderr, "%s", buf);

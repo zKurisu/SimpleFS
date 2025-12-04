@@ -31,9 +31,10 @@ int main(int argn, char *argv[]) {
         "  ./build/my_format 0 4096\n"
         "  This will create superblock, bitmap block and inode table\n", argn);
     
-    int32_t disk_id, block_size;
+    int32_t block_size;
+    int32_t disk_id   = atoi(argv[1]);
     if (argn != 3 || // file name, disk id, block size
-        (disk_id   = atoi(argv[1])) == 0 ||
+        disk_id > 9 || disk_id < 0 ||
         (block_size = atoi(argv[2])) == 0) { // Error
         fprintf(stderr, "%s", buf);
         exit(0);

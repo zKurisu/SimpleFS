@@ -18,7 +18,9 @@
 #define MAX_CMD_LEN 4096
 
 int main(int argn, char *argv[]) {
-    if (argn != 4) { // file name, block number, block count, and block size
+    int32_t disk_id   = atoi(argv[1]);
+    if (argn != 4 ||
+        disk_id > 9 || disk_id < 0) { // file name, block number, block count, and block size
         fprintf(stderr, "init: wrong args count [%d]\n\n"
                 "Usage:\n"
                 "  ./build/my_init [disk_id] [block_count] [block_size]\n\n"
