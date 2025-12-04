@@ -54,51 +54,63 @@ RC fs_touch(filesystem *fs, const char *path_str) {
         return ErrInode;
     }
 
-    // Check whether file exists
+    // Check whether file exists (outside lock for better performance)
     if ((inode_num = path_lookup(fs, ino, &p)) != 0) {
         fprintf(stderr, "fs_touch error: file already exists [%s]\n",
                 path_str);
         return ErrDirentExists;
     }
 
+    // Create new inode first (outside lock to reduce contention)
+    inode new_ino;
+    ino_init(&new_ino);
+    new_ino.file_type = FTypeFile;
+    if ((new_ino.inode_number = ino_alloc(fs)) == 0) {
+        fprintf(stderr, "fs_touch error: failed to alloc new inode number\n");
+        return ErrInternal;
+    }
+    if ((new_ino.single_indirect = bl_alloc(fs)) == 0) {
+        fprintf(stderr, "fs_touch error: failed to alloc new block number\n");
+        ino_free(fs, new_ino.inode_number);
+        return ErrInternal;
+    }
+    if (bl_clean(fs, new_ino.single_indirect) != OK) {
+        fprintf(stderr, "fs_touch error: failed to init a single_indirect block\n");
+        bl_free(fs, new_ino.single_indirect);
+        ino_free(fs, new_ino.inode_number);
+        return ErrInternal;
+    }
+    ino_write(fs, new_ino.inode_number, &new_ino);
+
+    // Now add to directory - dir_add handles locking internally
     inode_num = 1;
     for (uint32_t i=0; i<p.count; i++) {
         if (i != (p.count - 1)) {// path directory check
-            if ((inode_num = dir_lookup(fs, &ino, (uint8_t*)p.components[i])) == 0) { 
+            if ((inode_num = dir_lookup(fs, &ino, (uint8_t*)p.components[i])) == 0) {
                 fprintf(stderr, "fs_touch error: directory not exists [%s] at level [%d]\n",
                         p.components[i], i);
+                // Cleanup allocated resources
+                bl_free(fs, new_ino.single_indirect);
+                ino_free(fs, new_ino.inode_number);
                 return ErrPath;
             }
 
             if (ino_read(fs, inode_num, &ino) != OK) {
                 fprintf(stderr, "fs_touch error: failed to read dir inode [%d]\n",
                         inode_num);
+                // Cleanup allocated resources
+                bl_free(fs, new_ino.single_indirect);
+                ino_free(fs, new_ino.inode_number);
+                return ErrInode;
             }
         } else { // last component, file name
-            // Create new inode
-            inode new_ino;
-            ino_init(&new_ino);
-            new_ino.file_type = FTypeFile;
-            if ((new_ino.inode_number = ino_alloc(fs)) == 0) {
-                fprintf(stderr, "fs_touch error: failed to alloc new inode number\n");
-                return ErrInternal;
-            }
-            if ((new_ino.single_indirect = bl_alloc(fs)) == 0) {
-                fprintf(stderr, "fs_touch error: failed to alloc new block number\n");
-                ino_free(fs, inode_num);
-                return ErrInternal;
-            }
-            if (bl_clean(fs, new_ino.single_indirect) != OK) {
-                fprintf(stderr, "fs_touch error: failed to init a single_indirect block\n");
+            RC rc = dir_add(fs, &ino, (uint8_t*)p.components[i], new_ino.inode_number);
+            if (rc != OK) {
+                // If dir_add fails (e.g., already exists due to race), cleanup
                 bl_free(fs, new_ino.single_indirect);
-                ino_free(fs, inode_num);
-
-                return ErrInternal;
-
+                ino_free(fs, new_ino.inode_number);
+                return rc;
             }
-            ino_write(fs, new_ino.inode_number, &new_ino);
-            
-            dir_add(fs, &ino, (uint8_t*)p.components[i], new_ino.inode_number);
             ino_write(fs, inode_num, &ino);
         }
     }
@@ -157,26 +169,33 @@ RC fs_unlink(filesystem *fs, const char *path_str) {
                 inode_num);
         return ErrInode;
     }
-    // Free filesystem resource, inode number and block number
-    ino_free_all_blocks(fs, &target_ino);
-    ino_free(fs, inode_num);
 
-    // Free directory entry
+    // Remove from directory first - dir_remove handles locking internally
+    uint32_t save_inode_num = inode_num;
     inode_num = 1;
+    RC rc = OK;
     for (uint32_t i=0; i<p.count; i++) {
         if (i != (p.count - 1)) { // path directory check
             inode_num = dir_lookup(fs, &ino, (uint8_t*)p.components[i]);
 
             if (ino_read(fs, inode_num, &ino) != OK) {
-                fprintf(stderr, "fs_touch error: failed to read dir inode [%d]\n",
+                fprintf(stderr, "fs_unlink error: failed to read dir inode [%d]\n",
                         inode_num);
+                return ErrInode;
             }
         } else { // last component, file name
-            // remove file from directory
-            dir_remove(fs, &ino, (uint8_t*)p.components[i]);
+            rc = dir_remove(fs, &ino, (uint8_t*)p.components[i]);
+            if (rc != OK) {
+                return rc;
+            }
             ino_write(fs, inode_num, &ino);
         }
     }
+
+    // Now free filesystem resources (inode already removed from directory)
+    // This happens outside the lock for better performance
+    ino_free_all_blocks(fs, &target_ino);
+    ino_free(fs, save_inode_num);
 
     return OK;
 }
