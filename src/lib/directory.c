@@ -513,7 +513,7 @@ uint32_t dir_create(filesystem *fs, uint32_t parent_ino) {
                 "cur_ino_num: %d\n",
                 cur_dir_name, inode_num);
         ino_free_all_blocks(fs, &dir_ino);
-        bl_free(fs, indirect_blk_num);
+        // bl_free(fs, indirect_blk_num);
         ino_free(fs, inode_num);
         return 0;
     }
@@ -524,7 +524,7 @@ uint32_t dir_create(filesystem *fs, uint32_t parent_ino) {
         fprintf(stderr, "dir_create error: failed to write dir_inode to disk...\n"
                 "inode_num: %d\n", inode_num);
         ino_free_all_blocks(fs, &dir_ino);
-        bl_free(fs, indirect_blk_num);
+        // bl_free(fs, indirect_blk_num);
         ino_free(fs, inode_num);
         return 0;
     }

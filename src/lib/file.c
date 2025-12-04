@@ -41,7 +41,7 @@ file_handle *file_open(filesystem *fs, const char *path_str, uint32_t flags) {
     memset(&p, 0, size);
 
     if (path_parse(path_str, &p) != OK) {
-        fprintf(stderr, "fs_touch error: failed to parse path_str [%s] to path structure...\n",
+        fprintf(stderr, "file_open error: failed to parse path_str [%s] to path structure...\n",
                 path_str);
         return (file_handle*)0;
     }
@@ -57,14 +57,14 @@ file_handle *file_open(filesystem *fs, const char *path_str, uint32_t flags) {
     }
 
     if (ino_read(fs, inode_num, &ino) != OK) {
-        fprintf(stderr, "fs_touch error: failed to read base inode [%d]\n",
+        fprintf(stderr, "file_open error: failed to read base inode [%d]\n",
                 inode_num);
         return (file_handle*)0;
     }
 
     // Check whether file exists
     if ((inode_num = path_lookup(fs, ino, &p)) == 0) {
-        fprintf(stderr, "fs_touch error: file does not exists [%s]\n",
+        fprintf(stderr, "file_open error: file does not exists [%s]\n",
                 path_str);
         return (file_handle*)0;
     }
