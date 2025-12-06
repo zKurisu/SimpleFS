@@ -15,6 +15,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     uint32_t inode_num;
     filetype type;
@@ -66,5 +70,9 @@ RC fs_exists(filesystem *fs, const char *path_str);
  * Like shell command 'stat', get file metadata
  * */
 RC fs_stat(filesystem *fs, const char *path_str, f_stat *st);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

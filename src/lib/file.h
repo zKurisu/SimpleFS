@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MY_ACCMODE  0x03 // 0000 0011
 
 #define MY_O_RDONLY 0x00 // 0000 0000
@@ -50,7 +54,6 @@ struct s_file_handle {
     uint32_t offset;
     uint32_t flags;
 
-    // Lock ??
     pthread_rwlock_t rwlock;
 };
 typedef struct s_file_handle file_handle;
@@ -123,5 +126,9 @@ void file_show(file_handle *fh);
 RC file_check_flags(uint32_t flags);
 
 RC file_check_whence(uint8_t whence);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

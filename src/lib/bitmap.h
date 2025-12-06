@@ -10,6 +10,10 @@
 #define MY_BITMAP_H_
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct s_bitmap {
     uint8_t *bytes;
     uint32_t byte_len;
@@ -27,5 +31,9 @@ uint8_t bm_setbit(bitmap *bm, uint32_t idx);
 uint8_t bm_unsetbit(bitmap *bm, uint32_t idx);
 uint8_t bm_clearmap(bitmap *bm);
 void bm_show(bitmap *bm);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

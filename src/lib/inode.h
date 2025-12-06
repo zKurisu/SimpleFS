@@ -15,6 +15,9 @@
 
 #define DIRECT_POINTERS 12
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 // 4 bytes?
 typedef enum {
     FTypeNotValid,
@@ -73,5 +76,9 @@ uint32_t ino_get_block_count(filesystem *fs, inode *ino);
 uint32_t ino_get_max_block_offset(filesystem *fs);
 
 uint32_t ino_get_max_filesize(filesystem *fs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

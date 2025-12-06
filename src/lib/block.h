@@ -15,6 +15,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     BlockTypeSuper,
     BlockTypeInode,
@@ -74,5 +78,9 @@ RC bl_free(filesystem *fs, uint32_t block_number);
 
 // Write 0 to disk
 RC bl_clean(filesystem *fs, uint32_t block_number);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

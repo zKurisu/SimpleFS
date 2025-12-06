@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include "error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_DISKS 10
 #define MIN_BLOCK_SIZE 512
 
@@ -60,5 +64,9 @@ RC dwrite(disk *dd, uint8_t *block, uint32_t blockno);
 
 // Write include number of END
 RC dwrites(disk *dd, uint8_t *block, uint32_t start, uint32_t end);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

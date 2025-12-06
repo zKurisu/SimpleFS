@@ -8,6 +8,10 @@
 #ifndef MY_ERROR_H_
 #define MY_ERROR_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     OK,
     ErrDread,
@@ -29,4 +33,7 @@ typedef enum {
     ErrPath
 } RC; // Return Code
 
+#ifdef __cplusplus
+}
+#endif
 #endif

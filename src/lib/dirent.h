@@ -14,6 +14,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_FILENAME_LEN 252 // ori is 28, 255 
 #define VALID_NAME_SPECIAL_CHARS (uint8_t*)"._-" // Special chars
 
@@ -27,4 +31,7 @@ typedef struct s_dirent dirent;
 RC dirent_check_valid_name(const uint8_t *name);
 uint32_t get_dirent_per_block(filesystem *fs); // Block size should be integer multiple of directory entry size
 
+#ifdef __cplusplus
+}
+#endif
 #endif

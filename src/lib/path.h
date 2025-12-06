@@ -16,6 +16,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_PATH_DEPTH 32
 #define MAX_PATH_LEN 1024 // Acculy is MAX_PATH_LEN * MAX_FILENAME_LEN
 
@@ -66,10 +70,14 @@ uint8_t path_is_valid(const path *p);
 uint32_t path_lookup(filesystem *fs, inode begin_dir_ino, const path *p);
 
 /*
- * Merge two path components 
+ * Merge two path components
  *  first path should be an absolute path
  *  second path should be a relative path
  */
 RC path_merge(path *abs_path, const path *rel_path);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

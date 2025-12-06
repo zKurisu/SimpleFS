@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define Magic1 (0x04)
 #define Magic2 (0x17)
 #define InodeBlockPercentage (0.1) // How many blocks inode table takes in
@@ -50,5 +54,9 @@ RC fs_show(filesystem *fs); // display filesystem infomation
 
 // Helper function
 uint32_t cal_needed_bitmap_blocks(uint32_t bits, uint32_t block_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

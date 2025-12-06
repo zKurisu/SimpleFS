@@ -13,6 +13,9 @@
 #include "inode.h"
 #include "error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
  * Find the inode number for specifile filename through a directory inode
  */
@@ -71,5 +74,9 @@ RC dir_delete_empty(filesystem *fs, inode *dir_ino);
  * Display directory infomation
  */
 void dir_show(filesystem *fs, inode *dir_ino);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

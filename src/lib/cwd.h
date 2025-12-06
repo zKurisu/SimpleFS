@@ -16,6 +16,9 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct s_cwd_context {
     filesystem *fs;
 
@@ -59,5 +62,9 @@ RC cwd_chdir_path(const char *path_str);
  * Display current cwd
  * */
 void cwd_show();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
