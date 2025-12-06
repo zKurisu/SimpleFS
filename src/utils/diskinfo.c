@@ -64,6 +64,7 @@ int main(int argn, char *argv[]) {
         free(dd);
         exit(0);
     }
+    free(dd);
 
     return 0;
 }

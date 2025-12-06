@@ -54,6 +54,8 @@ protected:
 
         if (ddetach(dd) != OK) {
             fprintf(stderr, "SetUp error: failed to detach disk\n");
+            free(dd);
+            free(fs);
             exit(-1);
         }
         free(dd);

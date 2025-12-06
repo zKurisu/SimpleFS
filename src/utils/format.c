@@ -103,8 +103,11 @@ int main(int argn, char *argv[]) {
     if (ddetach(dd) != OK) {
         fprintf(stderr, "format: [error] failed to ddetach dd from disk with id [%d]\n", disk_id);
         free(dd);
+        free(fs);
         exit(0);
     }
+    free(dd);
+    free(fs);
 
     return 0;
 }

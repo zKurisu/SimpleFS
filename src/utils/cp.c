@@ -108,6 +108,8 @@ int main(int argn, char *argv[]) {
         free(fs);
         exit(0);
     }
+    free(dd);
+    free(fs);
 
     return 0;
 }
