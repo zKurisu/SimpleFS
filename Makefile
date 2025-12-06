@@ -13,6 +13,8 @@ TEST_DIR  := test
 CC      := gcc
 CFLAGS  := -g -Wall -I$(LIB_DIR)
 LDFLAGS := -lpthread
+TEST_CC := g++
+TEST_LDFLAGS := -lgtest -lgtest_main -lpthread
 
 # ============================================
 # Files catch
@@ -76,9 +78,9 @@ build: $(TARGET) $(UTIL_EXECS)
 test-%: $(BUILD_DIR)/test_%
 	./$<
 
-$(BUILD_DIR)/test_%: $(TEST_DIR)/%.c $(LIB_OBJS)
+$(BUILD_DIR)/test_%: $(TEST_DIR)/test_%.cpp $(LIB_OBJS)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+	$(TEST_CC) $(CFLAGS) $^ -o $@ $(TEST_LDFLAGS)
 
 print-%:
 	@echo '$*=$($*)'
